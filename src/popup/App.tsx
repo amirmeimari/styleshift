@@ -78,36 +78,28 @@ function LabelWithHelp({
       >
         {children}
       </Label>
-      <span className="group relative inline-flex">
-        <button
-          type="button"
-          className="inline-flex h-4 w-4 items-center justify-center rounded-sm text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
-          aria-label={`${labelText} help`}
-        >
-          <CircleHelp className="h-3.5 w-3.5" aria-hidden="true" />
-        </button>
-        <span className="pointer-events-none fixed left-3 right-3 top-16 z-50 hidden rounded-md border bg-popover px-2.5 py-2 text-xs font-normal leading-4 text-popover-foreground shadow-md group-hover:block group-focus-within:block">
-          {help}
-        </span>
-      </span>
+      <button
+        type="button"
+        className="inline-flex h-4 w-4 items-center justify-center rounded-sm text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
+        aria-label={`${labelText} help`}
+        title={help}
+      >
+        <CircleHelp className="h-3.5 w-3.5" aria-hidden="true" />
+      </button>
     </div>
   );
 }
 
 function HelpTooltip({ help, label }: { help: string; label: string }) {
   return (
-    <span className="group relative inline-flex">
-      <button
-        type="button"
-        className="inline-flex h-4 w-4 items-center justify-center rounded-sm text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
-        aria-label={`${label} help`}
-      >
-        <CircleHelp className="h-3.5 w-3.5" aria-hidden="true" />
-      </button>
-      <span className="pointer-events-none fixed left-3 right-3 top-16 z-50 hidden rounded-md border bg-popover px-2.5 py-2 text-xs font-normal leading-4 text-popover-foreground shadow-md group-hover:block group-focus-within:block">
-        {help}
-      </span>
-    </span>
+    <button
+      type="button"
+      className="inline-flex h-4 w-4 items-center justify-center rounded-sm text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
+      aria-label={`${label} help`}
+      title={help}
+    >
+      <CircleHelp className="h-3.5 w-3.5" aria-hidden="true" />
+    </button>
   );
 }
 
