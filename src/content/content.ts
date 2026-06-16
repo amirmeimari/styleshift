@@ -27,13 +27,52 @@ const DEFAULT_SETTINGS: StyleShiftSettings = {
   fontEnabled: false,
   customCSS: "",
 };
+const POPULAR_SITE_PRESETS = [
+  "google.com",
+  "mail.google.com",
+  "maps.google.com",
+  "docs.google.com",
+  "github.com",
+  "stackoverflow.com",
+  "figma.com",
+  "npmjs.com",
+  "linkedin.com",
+  "x.com",
+  "facebook.com",
+  "instagram.com",
+  "reddit.com",
+  "discord.com",
+  "whatsapp.com",
+  "slack.com",
+  "youtube.com",
+  "amazon.com",
+  "wikipedia.org",
+  "medium.com",
+  "drive.google.com",
+  "notion.so",
+  "microsoft.com",
+  "chatgpt.com",
+  "claude.ai",
+  "gemini.google.com",
+  "perplexity.ai",
+];
 
 const FONT_STYLE_ID = "styleshift-font";
 const CSS_STYLE_ID = "styleshift-css";
 const CUSTOM_FONTS_STYLE_ID = "styleshift-custom-fonts";
 const TEXT_TARGET_SELECTOR = `:where(body, body *):not(i):not(i *):not(svg):not(svg *):not(code):not(code *):not(pre):not(pre *):not(kbd):not(kbd *):not(samp):not(samp *):not(tt):not(tt *):not([class*='icon' i]):not([class*='icon' i] *):not([class*='material-icons' i]):not([class*='material-icons' i] *):not([class*='google-symbols' i]):not([class*='google-symbols' i] *):not([style*='Google Symbols' i]):not([class^='fa-']):not([class*=' fa-']):not([role='img']):not([role='img'] *):not([aria-hidden='true']):not([aria-hidden='true'] *)`;
 const CODE_TARGET_SELECTOR =
-  "code, code *, pre, pre *, kbd, kbd *, samp, samp *, tt, tt *, textarea, [class*='code' i], [class*='code' i] *, [class*='monospace' i], [class*='monospace' i] *, [class*='highlight' i], [class*='highlight' i] *";
+  "code, code *, pre, pre *, kbd, kbd *, samp, samp *, tt, tt *, [class*='code' i], [class*='code' i] *, [class*='monospace' i], [class*='monospace' i] *, [class*='highlight' i], [class*='highlight' i] *";
+const FORM_TEXT_TARGET_SELECTOR = [
+  "input",
+  "textarea",
+  "select",
+  "button",
+  "[contenteditable='true']",
+  "[contenteditable='true'] *",
+  "[role='textbox']",
+  "[role='textbox'] *",
+].join(", ");
 
 function parseFontStack(fontFamily: string) {
   return fontFamily
@@ -58,6 +97,16 @@ function formatFontFamily(fontFamily: string) {
 
 function serializeFontStack(fontStack: string[]) {
   return fontStack.map(formatFontFamily).filter(Boolean).join(", ");
+}
+
+function hostMatchesPreset(hostname: string, presetHost: string) {
+  return hostname === presetHost || hostname.endsWith(`.${presetHost}`);
+}
+
+function isPreActivatedHost(hostname: string) {
+  return POPULAR_SITE_PRESETS.some((presetHost) =>
+    hostMatchesPreset(hostname, presetHost),
+  );
 }
 
 function primaryFontFamily(fontFamily: string) {
@@ -98,7 +147,7 @@ function fontStyleText(settings: StyleShiftSettings, customFontNames: string[]) 
   const monoRule = monoFontFamily
     ? `\n${CODE_TARGET_SELECTOR} { font-family: ${monoFontFamily} !important; }`
     : "";
-  return `${TEXT_TARGET_SELECTOR} { font-family: ${fontFamily} !important; }${monoRule}`;
+  return `${TEXT_TARGET_SELECTOR}, ${FORM_TEXT_TARGET_SELECTOR} { font-family: ${fontFamily} !important; }${monoRule}`;
 }
 
 function ensureStyle(id: string, cssText: string) {
@@ -219,7 +268,12 @@ async function readGlobalMonoFontStack() {
 
 async function readHostSettings(hostname: string) {
   const stored = (await chrome.storage.local.get(hostname)) as StyleShiftStorage;
-  return { ...DEFAULT_SETTINGS, ...stored[hostname] };
+  const storedSettings = stored[hostname];
+  return {
+    ...DEFAULT_SETTINGS,
+    ...storedSettings,
+    fontEnabled: storedSettings?.fontEnabled ?? isPreActivatedHost(hostname),
+  };
 }
 
 async function loadAndApply() {
@@ -247,7 +301,68 @@ async function loadAndApply() {
   applySettings(settings, customFontNames);
 }
 
+let currentUrl = window.location.href;
+let reapplyTimer: number | undefined;
+
+function scheduleLoadAndApply(delay = 50) {
+  window.clearTimeout(reapplyTimer);
+  reapplyTimer = window.setTimeout(() => {
+    loadAndApply();
+  }, delay);
+}
+
+function watchDynamicPageChanges() {
+  const observer = new MutationObserver((mutations) => {
+    const removedStyle = mutations.some((mutation) =>
+      Array.from(mutation.removedNodes).some(
+        (node) =>
+          node instanceof HTMLElement &&
+          (node.id === FONT_STYLE_ID ||
+            node.id === CSS_STYLE_ID ||
+            node.id === CUSTOM_FONTS_STYLE_ID),
+      ),
+    );
+    const addedEditableContent = mutations.some((mutation) =>
+      Array.from(mutation.addedNodes).some((node) => {
+        if (!(node instanceof HTMLElement)) {
+          return false;
+        }
+
+        return (
+          node.matches(
+            "input, textarea, select, button, [contenteditable='true'], [role='textbox']",
+          ) ||
+          Boolean(
+            node.querySelector(
+              "input, textarea, select, button, [contenteditable='true'], [role='textbox']",
+            ),
+          )
+        );
+      }),
+    );
+
+    if (removedStyle || addedEditableContent) {
+      scheduleLoadAndApply(100);
+    }
+  });
+
+  observer.observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+  });
+
+  window.setInterval(() => {
+    if (window.location.href === currentUrl) {
+      return;
+    }
+
+    currentUrl = window.location.href;
+    scheduleLoadAndApply(25);
+  }, 500);
+}
+
 loadAndApply();
+watchDynamicPageChanges();
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
   const hostname = window.location.hostname;

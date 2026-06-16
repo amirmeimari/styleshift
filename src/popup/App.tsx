@@ -129,6 +129,22 @@ export function App() {
     () => Object.values(customFonts).map((font) => font.name),
     [customFonts],
   );
+  const presetColumns = useMemo(
+    () => {
+      const columnSizes = [3, 3, 3, 3, 3, 3, 3, 3, 3];
+      let startIndex = 0;
+
+      return columnSizes.map((columnSize) => {
+        const column = POPULAR_SITE_PRESETS.slice(
+          startIndex,
+          startIndex + columnSize,
+        );
+        startIndex += columnSize;
+        return column;
+      });
+    },
+    [],
+  );
 
   const canApply = useMemo(
     () => Boolean(hostname) && globalEnabled,
@@ -457,14 +473,14 @@ export function App() {
                           <Badge
                             key={font}
                             variant="secondary"
-                            className="min-h-7 min-w-0 max-w-[155px] gap-1 pr-1 transition-colors group-hover:bg-black group-hover:text-white dark:group-hover:bg-white dark:group-hover:text-black"
+                            className="min-h-7 min-w-0 max-w-[155px] gap-1 pr-1 transition-colors group-hover:border-primary/25 group-hover:bg-zinc-300 group-hover:text-foreground dark:group-hover:border-white/25 dark:group-hover:bg-zinc-700 dark:group-hover:text-white"
                           >
                             <span className="min-w-0 truncate">{font}</span>
                             <Button
                               type="button"
                               variant="ghost"
                               size="icon"
-                              className="h-4 w-4 rounded-sm group-hover:text-white hover:bg-white/15 hover:text-white dark:group-hover:text-black dark:hover:bg-black/15 dark:hover:text-black"
+                              className="h-4 w-4 rounded-sm group-hover:text-foreground hover:bg-white/40 hover:text-foreground dark:group-hover:text-white dark:hover:bg-white/10 dark:hover:text-white"
                               aria-label={`Remove ${font}`}
                               onClick={(event) => {
                                 event.preventDefault();
@@ -564,48 +580,55 @@ export function App() {
                   click to toggle
                 </span>
               </div>
-              <div className="grid grid-cols-6 gap-1">
-                {POPULAR_SITE_PRESETS.map((preset) => {
-                  const active = presetStates[preset.host] ?? true;
+              <div className="grid grid-cols-9 justify-between gap-1">
+                {presetColumns.map((column, columnIndex) => (
+                  <div
+                    key={columnIndex}
+                    className="flex flex-col items-center gap-1"
+                  >
+                    {column.map((preset) => {
+                      const active = presetStates[preset.host] ?? true;
 
-                  return (
-                    <Button
-                      key={preset.host}
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      className={[
-                        "relative h-8 w-full overflow-hidden border transition-colors",
-                        active
-                          ? "border-primary/20 bg-secondary hover:bg-accent dark:border-primary/25 dark:bg-secondary dark:hover:bg-accent"
-                          : "border-border bg-card opacity-65 hover:bg-accent hover:opacity-100",
-                      ].join(" ")}
-                      title={`${active ? "Disable" : "Enable"} ${preset.label}`}
-                      aria-pressed={active}
-                      onClick={() => handlePresetToggle(preset.host)}
-                      disabled={!globalEnabled}
-                    >
-                      {failedPresetIcons[preset.host] ? (
-                        <span className="text-[10px] font-semibold">
-                          {preset.icon}
-                        </span>
-                      ) : (
-                        <img
-                          src={`https://www.google.com/s2/favicons?domain=${preset.host}&sz=32`}
-                          alt=""
-                          className="h-5 w-5 rounded-sm"
-                          onError={() =>
-                            setFailedPresetIcons((previous) => ({
-                              ...previous,
-                              [preset.host]: true,
-                            }))
-                          }
-                        />
-                      )}
-                      <span className="sr-only">{preset.label}</span>
-                    </Button>
-                  );
-                })}
+                      return (
+                        <Button
+                          key={preset.host}
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          className={[
+                            "relative h-8 w-8 overflow-hidden border p-0 transition-colors",
+                            active
+                              ? "border-primary/25 bg-secondary text-foreground hover:border-primary/45 hover:bg-zinc-300 hover:shadow-sm dark:border-white/25 dark:bg-zinc-800 dark:hover:border-white/50 dark:hover:bg-zinc-700"
+                              : "border-border bg-card opacity-65 hover:border-primary/35 hover:bg-white hover:opacity-100 hover:shadow-sm dark:bg-zinc-950 dark:hover:border-white/35 dark:hover:bg-zinc-900",
+                          ].join(" ")}
+                          title={`${active ? "Disable" : "Enable"} ${preset.label}`}
+                          aria-pressed={active}
+                          onClick={() => handlePresetToggle(preset.host)}
+                          disabled={!globalEnabled}
+                        >
+                          {failedPresetIcons[preset.host] ? (
+                            <span className="text-[10px] font-semibold">
+                              {preset.icon}
+                            </span>
+                          ) : (
+                            <img
+                              src={`https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons/${preset.svgIcon}/default.svg`}
+                              alt=""
+                              className="h-5 w-5 object-contain"
+                              onError={() =>
+                                setFailedPresetIcons((previous) => ({
+                                  ...previous,
+                                  [preset.host]: true,
+                                }))
+                              }
+                            />
+                          )}
+                          <span className="sr-only">{preset.label}</span>
+                        </Button>
+                      );
+                    })}
+                  </div>
+                ))}
               </div>
             </div>
             <div className="flex items-center gap-2 pt-1">
@@ -655,14 +678,14 @@ export function App() {
                       {monoFontFamily ? (
                         <Badge
                           variant="secondary"
-                          className="min-h-7 max-w-[220px] gap-1 pr-1 transition-colors group-hover:bg-black group-hover:text-white dark:group-hover:bg-white dark:group-hover:text-black"
+                          className="min-h-7 max-w-[220px] gap-1 pr-1 transition-colors group-hover:border-primary/25 group-hover:bg-zinc-300 group-hover:text-foreground dark:group-hover:border-white/25 dark:group-hover:bg-zinc-700 dark:group-hover:text-white"
                         >
                           <span className="truncate">{monoFontFamily}</span>
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="h-4 w-4 rounded-sm group-hover:text-white hover:bg-white/15 hover:text-white dark:group-hover:text-black dark:hover:bg-black/15 dark:hover:text-black"
+                            className="h-4 w-4 rounded-sm group-hover:text-foreground hover:bg-white/40 hover:text-foreground dark:group-hover:text-white dark:hover:bg-white/10 dark:hover:text-white"
                             aria-label="Clear code font"
                             onClick={(event) => {
                               event.preventDefault();

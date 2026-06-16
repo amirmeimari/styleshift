@@ -23,36 +23,33 @@ export const CUSTOM_FONT_INDEX_KEY = "__styleshift_custom_font_index__";
 export const CUSTOM_FONT_CHUNK_PREFIX = "__styleshift_custom_font_chunk__";
 export const CUSTOM_FONT_CHUNK_SIZE = 7000;
 export const POPULAR_SITE_PRESETS = [
-  { host: "google.com", label: "Google", icon: "G" },
-  { host: "github.com", label: "GitHub", icon: "GH" },
-  { host: "stackoverflow.com", label: "Stack Overflow", icon: "SO" },
-  { host: "youtube.com", label: "YouTube", icon: "YT" },
-  { host: "x.com", label: "X", icon: "X" },
-  { host: "twitter.com", label: "Twitter", icon: "T" },
-  { host: "reddit.com", label: "Reddit", icon: "R" },
-  { host: "wikipedia.org", label: "Wikipedia", icon: "W" },
-  { host: "medium.com", label: "Medium", icon: "M" },
-  { host: "notion.so", label: "Notion", icon: "N" },
-  { host: "docs.google.com", label: "Google Docs", icon: "GD" },
-  { host: "mail.google.com", label: "Gmail", icon: "GM" },
-  { host: "maps.google.com", label: "Maps", icon: "MP" },
-  { host: "figma.com", label: "Figma", icon: "F" },
-  { host: "linear.app", label: "Linear", icon: "L" },
-  { host: "slack.com", label: "Slack", icon: "S" },
-  { host: "discord.com", label: "Discord", icon: "D" },
-  { host: "linkedin.com", label: "LinkedIn", icon: "IN" },
-  { host: "news.ycombinator.com", label: "Hacker News", icon: "HN" },
-  { host: "openai.com", label: "OpenAI", icon: "AI" },
-  { host: "chatgpt.com", label: "ChatGPT", icon: "CG" },
-  { host: "npmjs.com", label: "npm", icon: "NP" },
-  { host: "vercel.com", label: "Vercel", icon: "V" },
-  { host: "tailwindcss.com", label: "Tailwind", icon: "TW" },
-  { host: "developer.mozilla.org", label: "MDN", icon: "MD" },
-  { host: "facebook.com", label: "Facebook", icon: "FB" },
-  { host: "instagram.com", label: "Instagram", icon: "IG" },
-  { host: "whatsapp.com", label: "WhatsApp", icon: "WA" },
-  { host: "netflix.com", label: "Netflix", icon: "NF" },
-  { host: "amazon.com", label: "Amazon", icon: "AZ" },
+  { host: "google.com", label: "Google", icon: "G", svgIcon: "google" },
+  { host: "mail.google.com", label: "Gmail", icon: "GM", svgIcon: "gmail-2026" },
+  { host: "maps.google.com", label: "Maps", icon: "MP", svgIcon: "google-maps" },
+  { host: "docs.google.com", label: "Google Docs", icon: "GD", svgIcon: "google-docs-2026" },
+  { host: "github.com", label: "GitHub", icon: "GH", svgIcon: "github" },
+  { host: "stackoverflow.com", label: "Stack Overflow", icon: "SO", svgIcon: "stack-overflow" },
+  { host: "figma.com", label: "Figma", icon: "F", svgIcon: "figma" },
+  { host: "npmjs.com", label: "npm", icon: "NP", svgIcon: "npm" },
+  { host: "linkedin.com", label: "LinkedIn", icon: "IN", svgIcon: "linkedin" },
+  { host: "x.com", label: "X", icon: "X", svgIcon: "x" },
+  { host: "facebook.com", label: "Facebook", icon: "FB", svgIcon: "facebook" },
+  { host: "instagram.com", label: "Instagram", icon: "IG", svgIcon: "instagram" },
+  { host: "reddit.com", label: "Reddit", icon: "R", svgIcon: "reddit" },
+  { host: "discord.com", label: "Discord", icon: "D", svgIcon: "discord" },
+  { host: "whatsapp.com", label: "WhatsApp", icon: "WA", svgIcon: "whatsapp" },
+  { host: "slack.com", label: "Slack", icon: "S", svgIcon: "slack" },
+  { host: "youtube.com", label: "YouTube", icon: "YT", svgIcon: "youtube" },
+  { host: "amazon.com", label: "Amazon", icon: "AZ", svgIcon: "amazon" },
+  { host: "wikipedia.org", label: "Wikipedia", icon: "W", svgIcon: "wikipedia" },
+  { host: "medium.com", label: "Medium", icon: "M", svgIcon: "medium" },
+  { host: "drive.google.com", label: "Google Drive", icon: "GD", svgIcon: "google-drive" },
+  { host: "notion.so", label: "Notion", icon: "N", svgIcon: "notion" },
+  { host: "microsoft.com", label: "Microsoft", icon: "MS", svgIcon: "microsoft" },
+  { host: "chatgpt.com", label: "ChatGPT", icon: "CG", svgIcon: "openai-chatgpt" },
+  { host: "claude.ai", label: "Claude", icon: "CL", svgIcon: "claude" },
+  { host: "gemini.google.com", label: "Gemini", icon: "GE", svgIcon: "google-gemini" },
+  { host: "perplexity.ai", label: "Perplexity", icon: "PX", svgIcon: "perplexity" },
 ];
 
 export const DEFAULT_SETTINGS: StyleShiftSettings = {
@@ -98,7 +95,18 @@ export const TEXT_TARGET_SELECTOR = [
 ].join("");
 
 export const CODE_TARGET_SELECTOR =
-  "code, code *, pre, pre *, kbd, kbd *, samp, samp *, tt, tt *, textarea, [class*='code' i], [class*='code' i] *, [class*='monospace' i], [class*='monospace' i] *, [class*='highlight' i], [class*='highlight' i] *";
+  "code, code *, pre, pre *, kbd, kbd *, samp, samp *, tt, tt *, [class*='code' i], [class*='code' i] *, [class*='monospace' i], [class*='monospace' i] *, [class*='highlight' i], [class*='highlight' i] *";
+
+export const FORM_TEXT_TARGET_SELECTOR = [
+  "input",
+  "textarea",
+  "select",
+  "button",
+  "[contenteditable='true']",
+  "[contenteditable='true'] *",
+  "[role='textbox']",
+  "[role='textbox'] *",
+].join(", ");
 
 export function parseFontStack(fontFamily: string) {
   return fontFamily
@@ -208,7 +216,7 @@ export function fontStyleText(
     ? `\n${CODE_TARGET_SELECTOR} { font-family: ${monoFontFamily} !important; }`
     : "";
 
-  return `${TEXT_TARGET_SELECTOR} { font-family: ${fontFamily} !important; }${monoRule}`;
+  return `${TEXT_TARGET_SELECTOR}, ${FORM_TEXT_TARGET_SELECTOR} { font-family: ${fontFamily} !important; }${monoRule}`;
 }
 
 export function ensureStyle(id: string, cssText: string) {
@@ -418,7 +426,9 @@ export async function injectSettings(
       const monoFontStack = buildStack(nextSettings.monoFontFamily);
       const textTargetSelector = `:where(body, body *):not(i):not(i *):not(svg):not(svg *):not(code):not(code *):not(pre):not(pre *):not(kbd):not(kbd *):not(samp):not(samp *):not(tt):not(tt *):not([class*='icon' i]):not([class*='icon' i] *):not([class*='material-icons' i]):not([class*='material-icons' i] *):not([class*='google-symbols' i]):not([class*='google-symbols' i] *):not([style*='Google Symbols' i]):not([class^='fa-']):not([class*=' fa-']):not([role='img']):not([role='img'] *):not([aria-hidden='true']):not([aria-hidden='true'] *)`;
       const codeTargetSelector =
-        "code, code *, pre, pre *, kbd, kbd *, samp, samp *, tt, tt *, textarea, [class*='code' i], [class*='code' i] *, [class*='monospace' i], [class*='monospace' i] *, [class*='highlight' i], [class*='highlight' i] *";
+        "code, code *, pre, pre *, kbd, kbd *, samp, samp *, tt, tt *, [class*='code' i], [class*='code' i] *, [class*='monospace' i], [class*='monospace' i] *, [class*='highlight' i], [class*='highlight' i] *";
+      const formTextTargetSelector =
+        "input, textarea, select, button, [contenteditable='true'], [contenteditable='true'] *, [role='textbox'], [role='textbox'] *";
       const monoRule = monoFontStack
         ? `\n${codeTargetSelector} { font-family: ${monoFontStack} !important; }`
         : "";
@@ -426,7 +436,7 @@ export async function injectSettings(
         nextSettings.fontEnabled &&
         nextSettings.fontFamily.trim() &&
         fontStack
-          ? `${textTargetSelector} { font-family: ${fontStack} !important; }${monoRule}`
+          ? `${textTargetSelector}, ${formTextTargetSelector} { font-family: ${fontStack} !important; }${monoRule}`
           : "";
 
       ensure(fontId, fontCSS);
