@@ -1,9 +1,18 @@
-import { useEffect, useState } from "react";
-import { ArrowLeft, Copy, Moon, RotateCcw, Save, Sun, Trash2 } from "lucide-react";
+import { useEffect, useState, type KeyboardEvent } from "react";
+import {
+  ArrowLeft,
+  Braces,
+  Copy,
+  Moon,
+  RotateCcw,
+  Save,
+  Sun,
+  Trash2,
+  WandSparkles,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
 import type { StyleShiftSettings } from "@/shared/styleshift";
 import {
   DEFAULT_SETTINGS,
@@ -17,6 +26,100 @@ import {
   setThemePreference,
   type ThemeMode,
 } from "@/shared/theme";
+
+function formatCSS(css: string) {
+  let normalized = "";
+  let quote: string | null = null;
+  let inComment = false;
+  let parenDepth = 0;
+
+  for (let index = 0; index < css.length; index += 1) {
+    const char = css[index];
+    const next = css[index + 1];
+    const previous = css[index - 1];
+
+    if (inComment) {
+      normalized += char;
+
+      if (char === "*" && next === "/") {
+        normalized += next;
+        index += 1;
+        inComment = false;
+        normalized += "\n";
+      }
+
+      continue;
+    }
+
+    if (quote) {
+      normalized += char;
+
+      if (char === quote && previous !== "\\") {
+        quote = null;
+      }
+
+      continue;
+    }
+
+    if (char === "/" && next === "*") {
+      inComment = true;
+      normalized += "/*";
+      index += 1;
+      continue;
+    }
+
+    if (char === '"' || char === "'") {
+      quote = char;
+      normalized += char;
+      continue;
+    }
+
+    if (char === "(") {
+      parenDepth += 1;
+      normalized += char;
+      continue;
+    }
+
+    if (char === ")") {
+      parenDepth = Math.max(0, parenDepth - 1);
+      normalized += char;
+      continue;
+    }
+
+    if (parenDepth === 0 && (char === "{" || char === "}" || char === ";")) {
+      normalized += `${char}\n`;
+      continue;
+    }
+
+    normalized += char;
+  }
+
+  const lines = normalized
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  let depth = 0;
+
+  if (lines.length === 0) {
+    return "";
+  }
+
+  return `${lines
+    .map((line) => {
+      if (line.startsWith("}")) {
+        depth = Math.max(0, depth - 1);
+      }
+
+      const formatted = `${"  ".repeat(depth)}${line}`;
+
+      if (line.endsWith("{")) {
+        depth += 1;
+      }
+
+      return formatted;
+    })
+    .join("\n")}\n`;
+}
 
 export function CSSEditorApp() {
   const [hostname, setHostname] = useState("");
@@ -63,10 +166,12 @@ export function CSSEditorApp() {
 
     setIsSaving(true);
     try {
+      const formattedCSS = formatCSS(customCSS);
       const settings = await readHostSettings(hostname);
-      settings.customCSS = customCSS;
+      settings.customCSS = formattedCSS;
       await updateHostSettings(hostname, settings);
-      setSavedCSS(customCSS);
+      setCustomCSS(formattedCSS);
+      setSavedCSS(formattedCSS);
 
       // Notify content script to update
       const [tab] = await chrome.tabs.query({
@@ -122,6 +227,28 @@ export function CSSEditorApp() {
     navigator.clipboard.writeText(customCSS);
   };
 
+  const handleFormat = () => {
+    setCustomCSS(formatCSS(customCSS));
+  };
+
+  const handleEditorKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key !== "Tab") {
+      return;
+    }
+
+    event.preventDefault();
+    const target = event.currentTarget;
+    const start = target.selectionStart;
+    const end = target.selectionEnd;
+    const nextCSS = `${customCSS.slice(0, start)}  ${customCSS.slice(end)}`;
+
+    setCustomCSS(nextCSS);
+    window.requestAnimationFrame(() => {
+      target.selectionStart = start + 2;
+      target.selectionEnd = start + 2;
+    });
+  };
+
   async function handleThemeToggle() {
     const nextTheme = theme === "dark" ? "light" : "dark";
     setTheme(nextTheme);
@@ -129,9 +256,10 @@ export function CSSEditorApp() {
   }
 
   const hasChanges = customCSS !== savedCSS;
+  const lineNumbers = customCSS.split("\n").map((_, index) => index + 1);
 
   return (
-    <div className="min-h-screen w-full dark:bg-zinc-950 dark:text-white bg-white text-black p-6">
+    <div className="min-h-screen w-full bg-background p-6 text-foreground">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
@@ -168,15 +296,42 @@ export function CSSEditorApp() {
 
         <Separator className="mb-6" />
 
-        <Card className="dark:bg-zinc-900 dark:border-zinc-800 bg-white border-gray-200">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-lg">Custom CSS</CardTitle>
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Braces className="h-4 w-4" />
+                Custom CSS
+              </CardTitle>
+              <Button
+                onClick={handleFormat}
+                variant="outline"
+                size="sm"
+                className="gap-2"
+              >
+                <WandSparkles className="h-4 w-4" />
+                Format
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Textarea
-              value={customCSS}
-              onChange={(e) => setCustomCSS(e.target.value)}
-              placeholder="/* Enter your custom CSS here */
+            <div className="overflow-hidden rounded-md border bg-card shadow-sm">
+              <div className="flex items-center justify-between border-b bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+                <span>styleshift.css</span>
+                <span>{lineNumbers.length} lines</span>
+              </div>
+              <div className="grid max-h-[60vh] min-h-96 grid-cols-[3.25rem_1fr] overflow-auto bg-zinc-950 text-zinc-100 dark:bg-black">
+                <div className="select-none border-r border-white/10 bg-black/25 py-3 pr-3 text-right font-mono text-xs leading-6 text-zinc-500">
+                  {lineNumbers.map((line) => (
+                    <div key={line}>{line}</div>
+                  ))}
+                </div>
+                <textarea
+                  value={customCSS}
+                  onChange={(e) => setCustomCSS(e.target.value)}
+                  onKeyDown={handleEditorKeyDown}
+                  spellCheck={false}
+                  placeholder="/* Enter your custom CSS here */
 body {
   background-color: #f0f0f0;
 }
@@ -184,8 +339,10 @@ body {
 .header {
   color: red;
 }"
-              className="font-mono min-h-96 dark:bg-zinc-800 dark:border-zinc-700 dark:text-white bg-gray-50 border-gray-300 text-black"
-            />
+                  className="min-h-96 resize-none border-0 bg-transparent px-4 py-3 font-mono text-sm leading-6 text-zinc-100 outline-none placeholder:text-zinc-500 focus:ring-0"
+                />
+              </div>
+            </div>
 
             <div className="flex flex-wrap gap-3 pt-4">
               <Button
@@ -210,7 +367,7 @@ body {
                 onClick={handleReset}
                 disabled={!hasChanges}
                 variant="outline"
-                className="gap-2 dark:bg-zinc-800 dark:border-zinc-700 dark:hover:bg-zinc-700"
+                className="gap-2"
               >
                 <RotateCcw className="w-4 h-4" />
                 Reset
@@ -219,7 +376,7 @@ body {
               <Button
                 onClick={handleCopy}
                 variant="outline"
-                className="gap-2 dark:bg-zinc-800 dark:border-zinc-700 dark:hover:bg-zinc-700"
+                className="gap-2"
               >
                 <Copy className="w-4 h-4" />
                 Copy
