@@ -163,7 +163,7 @@ function ensureStyle(id: string, cssText: string) {
   style.textContent = cssText;
 
   if (!existing) {
-    document.head.append(style);
+    (document.head || document.documentElement).append(style);
   }
 }
 
@@ -276,7 +276,10 @@ async function readHostSettings(hostname: string) {
   };
 }
 
+let applyGeneration = 0;
+
 async function loadAndApply() {
+  const generation = ++applyGeneration;
   const hostname = window.location.hostname;
 
   if (!hostname) {
@@ -284,6 +287,10 @@ async function loadAndApply() {
   }
 
   const globalEnabled = await readGlobalEnabled();
+
+  if (generation !== applyGeneration) {
+    return;
+  }
 
   if (!globalEnabled) {
     removeInjectedStyles();
@@ -295,9 +302,19 @@ async function loadAndApply() {
     readGlobalFontStack(),
     readGlobalMonoFontStack(),
   ]);
+
+  if (generation !== applyGeneration) {
+    return;
+  }
+
   settings.fontFamily = serializeFontStack(globalFontStack);
   settings.monoFontFamily = serializeFontStack(globalMonoFontStack);
   const customFontNames = await injectCustomFonts();
+
+  if (generation !== applyGeneration) {
+    return;
+  }
+
   applySettings(settings, customFontNames);
 }
 
@@ -311,17 +328,88 @@ function scheduleLoadAndApply(delay = 50) {
   }, delay);
 }
 
+function hasInjectedStyle(node: Node): boolean {
+  if (!(node instanceof Element)) {
+    return false;
+  }
+
+  if (
+    node.id === FONT_STYLE_ID ||
+    node.id === CSS_STYLE_ID ||
+    node.id === CUSTOM_FONTS_STYLE_ID
+  ) {
+    return true;
+  }
+
+  return Boolean(
+    node.querySelector(
+      `#${FONT_STYLE_ID}, #${CSS_STYLE_ID}, #${CUSTOM_FONTS_STYLE_ID}`,
+    ),
+  );
+}
+
+function watchUrlChanges() {
+  const handlePossibleUrlChange = () => {
+    if (window.location.href === currentUrl) {
+      return;
+    }
+
+    currentUrl = window.location.href;
+    scheduleLoadAndApply(25);
+  };
+
+  const scheduleUrlCheck = () => {
+    queueMicrotask(handlePossibleUrlChange);
+  };
+
+  const wrapHistoryMethod = (methodName: "pushState" | "replaceState") => {
+    const originalMethod = window.history[methodName];
+
+    try {
+      window.history[methodName] = function (
+        this: History,
+        ...args: Parameters<typeof history.pushState>
+      ) {
+        const result = originalMethod.apply(this, args);
+        scheduleUrlCheck();
+        return result;
+      };
+    } catch (error) {
+      console.warn(`StyleShift could not watch history.${methodName}.`, error);
+    }
+  };
+
+  wrapHistoryMethod("pushState");
+  wrapHistoryMethod("replaceState");
+
+  window.addEventListener("popstate", scheduleUrlCheck);
+  window.addEventListener("hashchange", scheduleUrlCheck);
+  window.setInterval(handlePossibleUrlChange, 1000);
+}
+
+function watchPageLifecycle() {
+  window.addEventListener("pageshow", () => {
+    scheduleLoadAndApply(25);
+  });
+  window.addEventListener("focus", () => {
+    scheduleLoadAndApply(50);
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+      scheduleLoadAndApply(50);
+    }
+  });
+}
+
 function watchDynamicPageChanges() {
   const observer = new MutationObserver((mutations) => {
-    const removedStyle = mutations.some((mutation) =>
-      Array.from(mutation.removedNodes).some(
-        (node) =>
-          node instanceof HTMLElement &&
-          (node.id === FONT_STYLE_ID ||
-            node.id === CSS_STYLE_ID ||
-            node.id === CUSTOM_FONTS_STYLE_ID),
-      ),
-    );
+    const removedStyle = mutations.some((mutation) => {
+      if (mutation.target === document.documentElement) {
+        return true;
+      }
+
+      return Array.from(mutation.removedNodes).some(hasInjectedStyle);
+    });
     const addedEditableContent = mutations.some((mutation) =>
       Array.from(mutation.addedNodes).some((node) => {
         if (!(node instanceof HTMLElement)) {
@@ -350,19 +438,12 @@ function watchDynamicPageChanges() {
     childList: true,
     subtree: true,
   });
-
-  window.setInterval(() => {
-    if (window.location.href === currentUrl) {
-      return;
-    }
-
-    currentUrl = window.location.href;
-    scheduleLoadAndApply(25);
-  }, 500);
 }
 
 loadAndApply();
 watchDynamicPageChanges();
+watchUrlChanges();
+watchPageLifecycle();
 
 chrome.storage.onChanged.addListener((changes, areaName) => {
   const hostname = window.location.hostname;
