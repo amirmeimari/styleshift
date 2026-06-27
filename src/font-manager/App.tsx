@@ -1,27 +1,12 @@
 import { ArrowLeft, Moon, Sun } from "lucide-react";
-import { useEffect, useState } from "react";
 import { CustomFontManager } from "@/components/custom-font-manager";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import {
-  getThemePreference,
-  setThemePreference,
-  type ThemeMode,
-} from "@/shared/theme";
+import { useTheme } from "@/shared/use-theme";
 
 export function FontManagerApp() {
-  const [theme, setTheme] = useState<ThemeMode>("dark");
-
-  useEffect(() => {
-    getThemePreference().then(setTheme);
-  }, []);
-
-  async function handleThemeToggle() {
-    const nextTheme = theme === "dark" ? "light" : "dark";
-    setTheme(nextTheme);
-    await setThemePreference(nextTheme);
-  }
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <main className="min-h-screen bg-background p-6 text-foreground">
@@ -37,7 +22,7 @@ export function FontManagerApp() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={handleThemeToggle}
+              onClick={toggleTheme}
               title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
             >
               {theme === "dark" ? (

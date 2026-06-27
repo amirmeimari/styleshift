@@ -41,3 +41,6 @@ ehthumbs.db
 # Testing
 coverage/
 .nyc_output/
+
+# graphify knowledge graph (generated; machine-specific paths)
+graphify-out/

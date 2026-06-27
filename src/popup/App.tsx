@@ -1,17 +1,11 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
-import {
-  ChevronsUpDown,
-  CircleHelp,
-  FileCode2,
-  Moon,
-  Sun,
-  Upload,
-  X,
-} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ChevronsUpDown, FileCode2, Moon, Sun, Upload, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { HelpTooltip, LabelWithHelp } from "@/components/help";
+import { useTheme } from "@/shared/use-theme";
 import {
   Command,
   CommandEmpty,
@@ -35,73 +29,19 @@ import {
   getActiveTab,
   getHostname,
   hostMatchesPreset,
-  injectSettings,
   parseFontStack,
   readCustomFonts,
   readGlobalEnabled,
   readGlobalFontStack,
   readGlobalMonoFontStack,
   readHostSettings,
+  requestReinject,
   serializeFontStack,
-  syncGlobalFontStackAcrossTabs,
-  syncGlobalEnabledAcrossTabs,
-  syncGlobalMonoFontStackAcrossTabs,
   updateGlobalEnabled,
   updateGlobalFontStack,
   updateGlobalMonoFontStack,
   updateHostSettings,
 } from "@/shared/styleshift";
-import {
-  getThemePreference,
-  setThemePreference,
-  type ThemeMode,
-} from "@/shared/theme";
-
-function LabelWithHelp({
-  children,
-  htmlFor,
-  help,
-  muted = false,
-}: {
-  children: ReactNode;
-  htmlFor?: string;
-  help: string;
-  muted?: boolean;
-}) {
-  const labelText = typeof children === "string" ? children : "Section";
-
-  return (
-    <div className="flex items-center gap-1.5">
-      <Label
-        htmlFor={htmlFor}
-        className={muted ? "text-xs text-muted-foreground" : undefined}
-      >
-        {children}
-      </Label>
-      <button
-        type="button"
-        className="inline-flex h-4 w-4 items-center justify-center rounded-sm text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
-        aria-label={`${labelText} help`}
-        title={help}
-      >
-        <CircleHelp className="h-3.5 w-3.5" aria-hidden="true" />
-      </button>
-    </div>
-  );
-}
-
-function HelpTooltip({ help, label }: { help: string; label: string }) {
-  return (
-    <button
-      type="button"
-      className="inline-flex h-4 w-4 items-center justify-center rounded-sm text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring"
-      aria-label={`${label} help`}
-      title={help}
-    >
-      <CircleHelp className="h-3.5 w-3.5" aria-hidden="true" />
-    </button>
-  );
-}
 
 export function App() {
   const [hostname, setHostname] = useState("");
@@ -124,27 +64,24 @@ export function App() {
   const [failedPresetIcons, setFailedPresetIcons] = useState<
     Record<string, boolean>
   >({});
-  const [theme, setTheme] = useState<ThemeMode>("dark");
+  const { theme, toggleTheme } = useTheme();
   const uploadedFontNames = useMemo(
     () => Object.values(customFonts).map((font) => font.name),
     [customFonts],
   );
-  const presetColumns = useMemo(
-    () => {
-      const columnSizes = [3, 3, 3, 3, 3, 3, 3, 3, 3];
-      let startIndex = 0;
+  const presetColumns = useMemo(() => {
+    const columnSizes = [3, 3, 3, 3, 3, 3, 3, 3, 3];
+    let startIndex = 0;
 
-      return columnSizes.map((columnSize) => {
-        const column = POPULAR_SITE_PRESETS.slice(
-          startIndex,
-          startIndex + columnSize,
-        );
-        startIndex += columnSize;
-        return column;
-      });
-    },
-    [],
-  );
+    return columnSizes.map((columnSize) => {
+      const column = POPULAR_SITE_PRESETS.slice(
+        startIndex,
+        startIndex + columnSize,
+      );
+      startIndex += columnSize;
+      return column;
+    });
+  }, []);
 
   const canApply = useMemo(
     () => Boolean(hostname) && globalEnabled,
@@ -218,10 +155,6 @@ export function App() {
     };
   }, []);
 
-  useEffect(() => {
-    getThemePreference().then(setTheme);
-  }, []);
-
   async function handleOpenCSSEditor() {
     try {
       const tab = await getActiveTab();
@@ -246,12 +179,6 @@ export function App() {
     }
   }
 
-  async function handleThemeToggle() {
-    const nextTheme = theme === "dark" ? "light" : "dark";
-    setTheme(nextTheme);
-    await setThemePreference(nextTheme);
-  }
-
   async function saveAndInject(nextSettings: StyleShiftSettings) {
     if (!hostname) {
       return;
@@ -259,13 +186,14 @@ export function App() {
 
     await updateHostSettings(hostname, nextSettings);
     const tab = await getActiveTab();
-    await injectSettings(tab.id, nextSettings, globalEnabled);
+    await requestReinject(tab.id);
   }
 
+  // Persisting to chrome.storage is enough to update every open tab: each tab's
+  // content script listens via chrome.storage.onChanged and re-applies itself.
   async function handleGlobalToggle(checked: boolean) {
     setGlobalEnabled(checked);
     await updateGlobalEnabled(checked);
-    await syncGlobalEnabledAcrossTabs(checked);
   }
 
   async function persistFontStack(nextFontStack: string[]) {
@@ -284,8 +212,6 @@ export function App() {
         fontEnabled,
       });
     }
-
-    await syncGlobalFontStackAcrossTabs(nextFontStack);
   }
 
   async function addFontChip(fontName = fontDraft) {
@@ -327,8 +253,6 @@ export function App() {
         fontEnabled,
       });
     }
-
-    await syncGlobalMonoFontStackAcrossTabs(nextFont ? [nextFont] : []);
   }
 
   async function chooseMonoFont(fontName = monoFontDraft) {
@@ -369,10 +293,6 @@ export function App() {
     });
   }
 
-  async function refreshCustomFonts() {
-    setCustomFonts(await readCustomFonts());
-  }
-
   async function handlePresetToggle(host: string) {
     const current = presetStates[host] ?? true;
     const next = !current;
@@ -387,19 +307,21 @@ export function App() {
 
     setPresetStates((previous) => ({ ...previous, [host]: next }));
 
+    // Presets are stored under their bare host (e.g. "google.com"), but the
+    // active tab's content script reads settings under its exact hostname (e.g.
+    // "www.google.com"). When the toggled preset is the current site, also
+    // persist under the actual hostname so the change takes effect, then nudge
+    // the tab to re-apply.
     if (hostMatchesPreset(hostname, host)) {
       setFontEnabled(next);
+      await updateHostSettings(hostname, {
+        ...settings,
+        fontFamily,
+        monoFontFamily,
+        fontEnabled: next,
+      });
       const tab = await getActiveTab();
-      await injectSettings(
-        tab.id,
-        {
-          ...settings,
-          fontFamily,
-          monoFontFamily,
-          fontEnabled: next,
-        },
-        globalEnabled,
-      );
+      await requestReinject(tab.id);
     }
   }
 
@@ -425,7 +347,7 @@ export function App() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={handleThemeToggle}
+                onClick={toggleTheme}
                 className="h-7 w-7 bg-card hover:bg-accent"
                 title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
               >

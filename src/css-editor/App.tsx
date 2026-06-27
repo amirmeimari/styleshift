@@ -13,7 +13,6 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import type { StyleShiftSettings } from "@/shared/styleshift";
 import {
   DEFAULT_SETTINGS,
   getHostname,
@@ -21,112 +20,18 @@ import {
   readHostSettings,
   updateHostSettings,
 } from "@/shared/styleshift";
-import {
-  getThemePreference,
-  setThemePreference,
-  type ThemeMode,
-} from "@/shared/theme";
+import type { ReinjectMessage } from "@/shared/messages";
+import { useTheme } from "@/shared/use-theme";
+import { formatCSS } from "./format-css";
 
-function formatCSS(css: string) {
-  let normalized = "";
-  let quote: string | null = null;
-  let inComment = false;
-  let parenDepth = 0;
-
-  for (let index = 0; index < css.length; index += 1) {
-    const char = css[index];
-    const next = css[index + 1];
-    const previous = css[index - 1];
-
-    if (inComment) {
-      normalized += char;
-
-      if (char === "*" && next === "/") {
-        normalized += next;
-        index += 1;
-        inComment = false;
-        normalized += "\n";
-      }
-
-      continue;
-    }
-
-    if (quote) {
-      normalized += char;
-
-      if (char === quote && previous !== "\\") {
-        quote = null;
-      }
-
-      continue;
-    }
-
-    if (char === "/" && next === "*") {
-      inComment = true;
-      normalized += "/*";
-      index += 1;
-      continue;
-    }
-
-    if (char === '"' || char === "'") {
-      quote = char;
-      normalized += char;
-      continue;
-    }
-
-    if (char === "(") {
-      parenDepth += 1;
-      normalized += char;
-      continue;
-    }
-
-    if (char === ")") {
-      parenDepth = Math.max(0, parenDepth - 1);
-      normalized += char;
-      continue;
-    }
-
-    if (parenDepth === 0 && (char === "{" || char === "}" || char === ";")) {
-      normalized += `${char}\n`;
-      continue;
-    }
-
-    normalized += char;
-  }
-
-  const lines = normalized
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
-  let depth = 0;
-
-  if (lines.length === 0) {
-    return "";
-  }
-
-  return `${lines
-    .map((line) => {
-      if (line.startsWith("}")) {
-        depth = Math.max(0, depth - 1);
-      }
-
-      const formatted = `${"  ".repeat(depth)}${line}`;
-
-      if (line.endsWith("{")) {
-        depth += 1;
-      }
-
-      return formatted;
-    })
-    .join("\n")}\n`;
-}
+const REINJECT_MESSAGE: ReinjectMessage = { type: "STYLESHIFT_REINJECT" };
 
 export function CSSEditorApp() {
   const [hostname, setHostname] = useState("");
   const [customCSS, setCustomCSS] = useState(DEFAULT_SETTINGS.customCSS);
   const [savedCSS, setSavedCSS] = useState(DEFAULT_SETTINGS.customCSS);
   const [isSaving, setIsSaving] = useState(false);
-  const [theme, setTheme] = useState<ThemeMode>("dark");
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     async function loadSettings() {
@@ -157,8 +62,6 @@ export function CSSEditorApp() {
     }
 
     loadSettings();
-
-    getThemePreference().then(setTheme);
   }, []);
 
   const handleSave = async () => {
@@ -180,7 +83,7 @@ export function CSSEditorApp() {
       });
       if (tab.id && isInjectableUrl(tab.url)) {
         try {
-          await chrome.tabs.sendMessage(tab.id, { type: "STYLESHIFT_REINJECT" });
+          await chrome.tabs.sendMessage(tab.id, REINJECT_MESSAGE);
         } catch {
           // Content script might not be ready, that's OK
         }
@@ -209,7 +112,7 @@ export function CSSEditorApp() {
       });
       if (tab.id && isInjectableUrl(tab.url)) {
         try {
-          await chrome.tabs.sendMessage(tab.id, { type: "STYLESHIFT_REINJECT" });
+          await chrome.tabs.sendMessage(tab.id, REINJECT_MESSAGE);
         } catch {
           // Content script might not be ready
         }
@@ -249,12 +152,6 @@ export function CSSEditorApp() {
     });
   };
 
-  async function handleThemeToggle() {
-    const nextTheme = theme === "dark" ? "light" : "dark";
-    setTheme(nextTheme);
-    await setThemePreference(nextTheme);
-  }
-
   const hasChanges = customCSS !== savedCSS;
   const lineNumbers = customCSS.split("\n").map((_, index) => index + 1);
 
@@ -265,14 +162,15 @@ export function CSSEditorApp() {
           <div>
             <h1 className="text-2xl font-bold">CSS Editor</h1>
             <p className="text-sm dark:text-zinc-400 text-zinc-600 mt-1">
-              Editing CSS for: <span className="font-mono font-semibold">{hostname}</span>
+              Editing CSS for:{" "}
+              <span className="font-mono font-semibold">{hostname}</span>
             </p>
           </div>
           <div className="flex gap-2">
             <Button
               variant="ghost"
               size="icon"
-              onClick={handleThemeToggle}
+              onClick={toggleTheme}
               className="gap-2"
               title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
             >
@@ -373,11 +271,7 @@ body {
                 Reset
               </Button>
 
-              <Button
-                onClick={handleCopy}
-                variant="outline"
-                className="gap-2"
-              >
+              <Button onClick={handleCopy} variant="outline" className="gap-2">
                 <Copy className="w-4 h-4" />
                 Copy
               </Button>
