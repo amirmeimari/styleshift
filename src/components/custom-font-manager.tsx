@@ -3,7 +3,6 @@ import { Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Badge } from "@/components/ui/badge";
 import type { CustomFont } from "@/shared/styleshift";
 import {
   readCustomFonts,
@@ -16,7 +15,9 @@ type CustomFontManagerProps = {
 };
 
 export function CustomFontManager({ onFontsChanged }: CustomFontManagerProps) {
-  const [customFonts, setCustomFonts] = useState<Record<string, CustomFont>>({});
+  const [customFonts, setCustomFonts] = useState<Record<string, CustomFont>>(
+    {},
+  );
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -41,7 +42,7 @@ export function CustomFontManager({ onFontsChanged }: CustomFontManagerProps) {
 
         if (!supportedFormats.includes(extension)) {
           console.error(
-            `Unsupported font format: ${extension}. Supported formats: ${supportedFormats.join(", ")}`
+            `Unsupported font format: ${extension}. Supported formats: ${supportedFormats.join(", ")}`,
           );
           continue;
         }
