@@ -14,6 +14,7 @@ export default defineConfig({
         popup: resolve(__dirname, "popup.html"),
         "css-editor": resolve(__dirname, "css-editor.html"),
         "font-manager": resolve(__dirname, "font-manager.html"),
+        settings: resolve(__dirname, "settings.html"),
       },
       output: {
         entryFileNames: "[name].js",

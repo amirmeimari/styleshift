@@ -27,7 +27,21 @@ import {
   readHostSettings,
 } from "@/shared/storage";
 import { readCustomFonts } from "@/shared/custom-fonts";
+import {
+  BUILTIN_FONTS_STYLE_ID,
+  BUILTIN_FONT_NAMES,
+  builtinFontFaces,
+} from "@/shared/builtin-fonts";
 import { isReinjectMessage } from "@/shared/messages";
+
+// Bundled fonts are declared once; their @font-face rules reference packaged
+// woff2 files via the extension origin (web_accessible_resources).
+function injectBuiltinFonts(): void {
+  ensureStyle(
+    BUILTIN_FONTS_STYLE_ID,
+    builtinFontFaces((path) => chrome.runtime.getURL(path)),
+  );
+}
 
 async function injectCustomFonts(): Promise<string[]> {
   try {
@@ -78,13 +92,15 @@ async function loadAndApply() {
 
   settings.fontFamily = serializeFontStack(globalFontStack);
   settings.monoFontFamily = serializeFontStack(globalMonoFontStack);
+  injectBuiltinFonts();
   const customFontNames = await injectCustomFonts();
 
   if (generation !== applyGeneration) {
     return;
   }
 
-  applySettings(settings, customFontNames);
+  // Bundled fonts are always available, alongside any uploaded/imported ones.
+  applySettings(settings, [...BUILTIN_FONT_NAMES, ...customFontNames]);
 }
 
 let currentUrl = window.location.href;
@@ -98,7 +114,12 @@ function scheduleLoadAndApply(delay = 50) {
   }, delay);
 }
 
-const INJECTED_STYLE_IDS = [FONT_STYLE_ID, CSS_STYLE_ID, CUSTOM_FONTS_STYLE_ID];
+const INJECTED_STYLE_IDS = [
+  FONT_STYLE_ID,
+  CSS_STYLE_ID,
+  CUSTOM_FONTS_STYLE_ID,
+  BUILTIN_FONTS_STYLE_ID,
+];
 const INJECTED_STYLE_SELECTOR = INJECTED_STYLE_IDS.map((id) => `#${id}`).join(
   ", ",
 );

@@ -30,6 +30,7 @@ await build({
         popup: resolve(root, "popup.html"),
         "css-editor": resolve(root, "css-editor.html"),
         "font-manager": resolve(root, "font-manager.html"),
+        settings: resolve(root, "settings.html"),
       },
       output: {
         entryFileNames: "[name].js",

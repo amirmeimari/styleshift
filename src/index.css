@@ -1,3 +1,47 @@
+/* Self-hosted UI fonts: Nunito Sans for Latin, Vazirmatn for Arabic/Farsi. */
+@font-face {
+  font-family: "Nunito Sans";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/ui/nunito-sans-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Nunito Sans";
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/ui/nunito-sans-600.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Nunito Sans";
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/ui/nunito-sans-700.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Vazirmatn";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/ui/vazirmatn-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Vazirmatn";
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/ui/vazirmatn-600.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Vazirmatn";
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/ui/vazirmatn-700.woff2") format("woff2");
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

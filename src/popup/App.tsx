@@ -1,11 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronsUpDown, FileCode2, Moon, Sun, Upload, X } from "lucide-react";
+import {
+  ChevronsUpDown,
+  FileCode2,
+  Moon,
+  Settings,
+  Sun,
+  Upload,
+  X,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { HelpTooltip, LabelWithHelp } from "@/components/help";
 import { useTheme } from "@/shared/use-theme";
+import { useI18n } from "@/shared/i18n/use-i18n";
+import { BUILTIN_FONT_NAMES } from "@/shared/builtin-fonts";
+import { FONT_STATUS_META, fontStatus } from "@/shared/font-status";
 import {
   Command,
   CommandEmpty,
@@ -43,7 +54,27 @@ import {
   updateHostSettings,
 } from "@/shared/styleshift";
 
+function FontStatusDot({
+  name,
+  uploadedNames,
+  label,
+}: {
+  name: string;
+  uploadedNames: string[];
+  label: string;
+}) {
+  const status = fontStatus(name, uploadedNames);
+  return (
+    <span
+      className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${FONT_STATUS_META[status].dotClass}`}
+      title={label}
+      aria-label={label}
+    />
+  );
+}
+
 export function App() {
+  const { t } = useI18n();
   const [hostname, setHostname] = useState("");
   const [pageName, setPageName] = useState("this page");
   const [fontFamily, setFontFamily] = useState(DEFAULT_SETTINGS.fontFamily);
@@ -69,6 +100,8 @@ export function App() {
     () => Object.values(customFonts).map((font) => font.name),
     [customFonts],
   );
+  const statusLabel = (name: string) =>
+    t(FONT_STATUS_META[fontStatus(name, uploadedFontNames)].helpKey);
   const presetColumns = useMemo(() => {
     const columnSizes = [3, 3, 3, 3, 3, 3, 3, 3, 3];
     let startIndex = 0;
@@ -176,6 +209,15 @@ export function App() {
       await chrome.tabs.create({ url: managerUrl });
     } catch (error) {
       console.error("Error opening font manager:", error);
+    }
+  }
+
+  async function handleOpenSettings() {
+    try {
+      const settingsUrl = chrome.runtime.getURL("settings.html");
+      await chrome.tabs.create({ url: settingsUrl });
+    } catch (error) {
+      console.error("Error opening settings:", error);
     }
   }
 
@@ -339,8 +381,8 @@ export function App() {
               </Label>
               <div className="text-[10px] leading-3 text-muted-foreground">
                 {globalEnabled
-                  ? "Enabled for all websites"
-                  : "Disabled for all websites"}
+                  ? t("popup.statusEnabled")
+                  : t("popup.statusDisabled")}
               </div>
             </div>
             <div className="flex gap-1">
@@ -349,7 +391,11 @@ export function App() {
                 size="icon"
                 onClick={toggleTheme}
                 className="h-7 w-7 bg-card hover:bg-accent"
-                title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+                title={t(
+                  theme === "dark"
+                    ? "theme.switchToLight"
+                    : "theme.switchToDark",
+                )}
               >
                 {theme === "dark" ? (
                   <Sun className="h-4 w-4" />
@@ -371,9 +417,9 @@ export function App() {
             <div className="space-y-1.5">
               <LabelWithHelp
                 htmlFor="font-family"
-                help="Add font names installed on your system, or choose fonts you uploaded in StyleShift."
+                help={t("popup.fontFamilyHelp")}
               >
-                Font family
+                {t("popup.fontFamily")}
               </LabelWithHelp>
               <Popover
                 open={fontComboboxOpen}
@@ -397,13 +443,18 @@ export function App() {
                             variant="secondary"
                             className="min-h-7 min-w-0 max-w-[155px] gap-1 pr-1 transition-colors group-hover:border-primary/25 group-hover:bg-zinc-300 group-hover:text-foreground dark:group-hover:border-white/25 dark:group-hover:bg-zinc-700 dark:group-hover:text-white"
                           >
+                            <FontStatusDot
+                              name={font}
+                              uploadedNames={uploadedFontNames}
+                              label={statusLabel(font)}
+                            />
                             <span className="min-w-0 truncate">{font}</span>
                             <Button
                               type="button"
                               variant="ghost"
                               size="icon"
                               className="h-4 w-4 rounded-sm group-hover:text-foreground hover:bg-white/40 hover:text-foreground dark:group-hover:text-white dark:hover:bg-white/10 dark:hover:text-white"
-                              aria-label={`Remove ${font}`}
+                              aria-label={`${t("common.close")} ${font}`}
                               onClick={(event) => {
                                 event.preventDefault();
                                 event.stopPropagation();
@@ -417,7 +468,7 @@ export function App() {
                         ))
                       ) : (
                         <span className="px-1 text-sm font-normal text-muted-foreground">
-                          Type font and press Enter
+                          {t("popup.fontPlaceholder")}
                         </span>
                       )}
                     </span>
@@ -427,7 +478,7 @@ export function App() {
                 <PopoverContent className="w-[348px] p-0" align="start">
                   <Command shouldFilter={false}>
                     <CommandInput
-                      placeholder="Add font"
+                      placeholder={t("popup.addFont")}
                       value={fontDraft}
                       onValueChange={setFontDraft}
                       onKeyDown={(event) => {
@@ -438,22 +489,55 @@ export function App() {
                       }}
                     />
                     <CommandList>
-                      <CommandEmpty>
-                        Press Enter to save this font.
-                      </CommandEmpty>
+                      <CommandEmpty>{t("popup.pressEnterSave")}</CommandEmpty>
                       {fontStack.length > 0 ? (
-                        <CommandGroup heading="Saved fonts">
+                        <CommandGroup heading={t("popup.savedFonts")}>
                           {fontStack.map((font) => (
                             <CommandItem
                               key={font}
                               value={font}
                               onSelect={() => removeFontChip(font)}
                             >
+                              <FontStatusDot
+                                name={font}
+                                uploadedNames={uploadedFontNames}
+                                label={statusLabel(font)}
+                              />
                               <span className="flex-1 truncate">{font}</span>
                               <X
                                 className="h-4 w-4 text-muted-foreground"
                                 aria-hidden="true"
                               />
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      ) : null}
+                      {BUILTIN_FONT_NAMES.filter(
+                        (font) =>
+                          !fontStack.some(
+                            (saved) =>
+                              saved.toLowerCase() === font.toLowerCase(),
+                          ),
+                      ).length > 0 ? (
+                        <CommandGroup heading={t("popup.bundledFonts")}>
+                          {BUILTIN_FONT_NAMES.filter(
+                            (font) =>
+                              !fontStack.some(
+                                (saved) =>
+                                  saved.toLowerCase() === font.toLowerCase(),
+                              ),
+                          ).map((font) => (
+                            <CommandItem
+                              key={font}
+                              value={font}
+                              onSelect={() => addFontChip(font)}
+                            >
+                              <FontStatusDot
+                                name={font}
+                                uploadedNames={uploadedFontNames}
+                                label={statusLabel(font)}
+                              />
+                              <span className="flex-1 truncate">{font}</span>
                             </CommandItem>
                           ))}
                         </CommandGroup>
@@ -465,7 +549,7 @@ export function App() {
                               saved.toLowerCase() === font.toLowerCase(),
                           ),
                       ).length > 0 ? (
-                        <CommandGroup heading="Uploaded fonts">
+                        <CommandGroup heading={t("popup.uploadedFonts")}>
                           {uploadedFontNames
                             .filter(
                               (font) =>
@@ -480,6 +564,11 @@ export function App() {
                                 value={font}
                                 onSelect={() => addFontChip(font)}
                               >
+                                <FontStatusDot
+                                  name={font}
+                                  uploadedNames={uploadedFontNames}
+                                  label={statusLabel(font)}
+                                />
                                 <span className="flex-1 truncate">{font}</span>
                               </CommandItem>
                             ))}
@@ -492,14 +581,11 @@ export function App() {
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <LabelWithHelp
-                  muted
-                  help="These popular sites can be enabled or disabled before you visit them. Active sites use your selected fonts when StyleShift is on."
-                >
-                  Pre-activated sites
+                <LabelWithHelp muted help={t("popup.fontFamilyHelp")}>
+                  {t("popup.preActivated")}
                 </LabelWithHelp>
                 <span className="text-[10px] text-muted-foreground">
-                  click to toggle
+                  {t("popup.clickToToggle")}
                 </span>
               </div>
               <div className="grid grid-cols-9 justify-between gap-1">
@@ -563,11 +649,11 @@ export function App() {
                 disabled={!canApply}
               />
               <Label htmlFor="font-enabled" className="truncate">
-                Apply font for {pageName}
+                {t("popup.applyFontFor", { page: pageName })}
               </Label>
               <HelpTooltip
-                label="Apply font"
-                help={`Turn StyleShift font changes on or off for ${pageName}.`}
+                label={t("popup.applyFontFor", { page: pageName })}
+                help={t("popup.applyFontHelp", { page: pageName })}
               />
             </div>
           </section>
@@ -578,9 +664,9 @@ export function App() {
             <div className="space-y-1.5">
               <LabelWithHelp
                 htmlFor="mono-font-family"
-                help="Choose one font for code blocks, editors, preformatted text, and monospace content. You can type a system font name or pick an uploaded font."
+                help={t("popup.codeFontHelp")}
               >
-                Code font
+                {t("popup.codeFont")}
               </LabelWithHelp>
               <Popover
                 open={monoFontComboboxOpen}
@@ -608,7 +694,7 @@ export function App() {
                             variant="ghost"
                             size="icon"
                             className="h-4 w-4 rounded-sm group-hover:text-foreground hover:bg-white/40 hover:text-foreground dark:group-hover:text-white dark:hover:bg-white/10 dark:hover:text-white"
-                            aria-label="Clear code font"
+                            aria-label={t("popup.codeFont")}
                             onClick={(event) => {
                               event.preventDefault();
                               event.stopPropagation();
@@ -621,7 +707,7 @@ export function App() {
                         </Badge>
                       ) : (
                         <span className="px-1 text-sm font-normal text-muted-foreground">
-                          Pick one code font
+                          {t("popup.pickCodeFont")}
                         </span>
                       )}
                     </span>
@@ -631,7 +717,7 @@ export function App() {
                 <PopoverContent className="w-[348px] p-0" align="start">
                   <Command shouldFilter={false}>
                     <CommandInput
-                      placeholder="Add code font"
+                      placeholder={t("popup.addCodeFont")}
                       value={monoFontDraft}
                       onValueChange={setMonoFontDraft}
                       onKeyDown={(event) => {
@@ -642,15 +728,38 @@ export function App() {
                       }}
                     />
                     <CommandList>
-                      <CommandEmpty>Type a font and press Enter.</CommandEmpty>
+                      <CommandEmpty>{t("popup.typeFontEnter")}</CommandEmpty>
+                      {BUILTIN_FONT_NAMES.length > 0 ? (
+                        <CommandGroup heading={t("popup.bundledFonts")}>
+                          {BUILTIN_FONT_NAMES.map((font) => (
+                            <CommandItem
+                              key={font}
+                              value={font}
+                              onSelect={() => chooseMonoFont(font)}
+                            >
+                              <FontStatusDot
+                                name={font}
+                                uploadedNames={uploadedFontNames}
+                                label={statusLabel(font)}
+                              />
+                              <span className="flex-1 truncate">{font}</span>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                      ) : null}
                       {uploadedFontNames.length > 0 ? (
-                        <CommandGroup heading="Uploaded fonts">
+                        <CommandGroup heading={t("popup.uploadedFonts")}>
                           {uploadedFontNames.map((font) => (
                             <CommandItem
                               key={font}
                               value={font}
                               onSelect={() => chooseMonoFont(font)}
                             >
+                              <FontStatusDot
+                                name={font}
+                                uploadedNames={uploadedFontNames}
+                                label={statusLabel(font)}
+                              />
                               <span className="flex-1 truncate">{font}</span>
                             </CommandItem>
                           ))}
@@ -665,10 +774,10 @@ export function App() {
 
           <Separator />
           <section className="space-y-1.5">
-            <LabelWithHelp help="Open the CSS editor for this site or manage uploaded fonts saved in the extension.">
-              Tools
+            <LabelWithHelp help={t("popup.toolsHelp")}>
+              {t("popup.tools")}
             </LabelWithHelp>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               <Button
                 type="button"
                 variant="outline"
@@ -678,7 +787,7 @@ export function App() {
                 className="h-8 gap-2"
               >
                 <FileCode2 className="h-4 w-4" />
-                CSS
+                {t("popup.css")}
               </Button>
               <Button
                 type="button"
@@ -688,7 +797,17 @@ export function App() {
                 className="h-8 gap-2"
               >
                 <Upload className="h-4 w-4" />
-                Fonts
+                {t("popup.fonts")}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleOpenSettings}
+                className="h-8 gap-2"
+              >
+                <Settings className="h-4 w-4" />
+                {t("popup.settings")}
               </Button>
             </div>
           </section>

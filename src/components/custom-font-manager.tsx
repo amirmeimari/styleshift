@@ -9,12 +9,14 @@ import {
   updateCustomFont,
   deleteCustomFont,
 } from "@/shared/styleshift";
+import { useI18n } from "@/shared/i18n/use-i18n";
 
 type CustomFontManagerProps = {
   onFontsChanged?: () => void | Promise<void>;
 };
 
 export function CustomFontManager({ onFontsChanged }: CustomFontManagerProps) {
+  const { t } = useI18n();
   const [customFonts, setCustomFonts] = useState<Record<string, CustomFont>>(
     {},
   );
@@ -95,7 +97,7 @@ export function CustomFontManager({ onFontsChanged }: CustomFontManagerProps) {
 
   return (
     <section className="space-y-3">
-      <Label>Custom Fonts</Label>
+      <Label>{t("fonts.customFonts")}</Label>
       <div className="space-y-2">
         <Button
           type="button"
@@ -105,7 +107,7 @@ export function CustomFontManager({ onFontsChanged }: CustomFontManagerProps) {
           className="w-full gap-2"
         >
           <Plus className="h-4 w-4" />
-          {isUploading ? "Uploading..." : "Upload Font"}
+          {isUploading ? t("fonts.uploading") : t("fonts.uploadFont")}
         </Button>
         <input
           ref={fileInputRef}
@@ -116,7 +118,7 @@ export function CustomFontManager({ onFontsChanged }: CustomFontManagerProps) {
           className="hidden"
         />
         <p className="text-xs text-muted-foreground">
-          Supported formats: WOFF2, WOFF, TTF, OTF
+          {t("fonts.supportedFormats")}
         </p>
       </div>
 
@@ -124,7 +126,7 @@ export function CustomFontManager({ onFontsChanged }: CustomFontManagerProps) {
         <>
           <Separator className="my-3" />
           <div className="space-y-2">
-            <Label className="text-xs">Uploaded Fonts</Label>
+            <Label className="text-xs">{t("fonts.uploadedFonts")}</Label>
             <div className="space-y-2 max-h-48 overflow-y-auto">
               {Object.values(customFonts).map((font) => (
                 <div
