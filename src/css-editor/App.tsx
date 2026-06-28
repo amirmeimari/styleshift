@@ -22,6 +22,7 @@ import {
 } from "@/shared/styleshift";
 import type { ReinjectMessage } from "@/shared/messages";
 import { useTheme } from "@/shared/use-theme";
+import { useI18n } from "@/shared/i18n/use-i18n";
 import { formatCSS } from "./format-css";
 
 const REINJECT_MESSAGE: ReinjectMessage = { type: "STYLESHIFT_REINJECT" };
@@ -32,6 +33,7 @@ export function CSSEditorApp() {
   const [savedCSS, setSavedCSS] = useState(DEFAULT_SETTINGS.customCSS);
   const [isSaving, setIsSaving] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const { t } = useI18n();
 
   useEffect(() => {
     async function loadSettings() {
@@ -160,9 +162,9 @@ export function CSSEditorApp() {
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold">CSS Editor</h1>
+            <h1 className="text-2xl font-bold">{t("editor.title")}</h1>
             <p className="text-sm dark:text-zinc-400 text-zinc-600 mt-1">
-              Editing CSS for:{" "}
+              {t("editor.editingFor")}{" "}
               <span className="font-mono font-semibold">{hostname}</span>
             </p>
           </div>
@@ -172,7 +174,9 @@ export function CSSEditorApp() {
               size="icon"
               onClick={toggleTheme}
               className="gap-2"
-              title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+              title={t(
+                theme === "dark" ? "theme.switchToLight" : "theme.switchToDark",
+              )}
             >
               {theme === "dark" ? (
                 <Sun className="w-4 h-4" />
@@ -187,7 +191,7 @@ export function CSSEditorApp() {
               className="gap-2"
             >
               <ArrowLeft className="w-4 h-4" />
-              Close
+              {t("common.close")}
             </Button>
           </div>
         </div>
@@ -199,7 +203,7 @@ export function CSSEditorApp() {
             <div className="flex items-center justify-between gap-3">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Braces className="h-4 w-4" />
-                Custom CSS
+                {t("editor.customCSS")}
               </CardTitle>
               <Button
                 onClick={handleFormat}
@@ -208,7 +212,7 @@ export function CSSEditorApp() {
                 className="gap-2"
               >
                 <WandSparkles className="h-4 w-4" />
-                Format
+                {t("editor.format")}
               </Button>
             </div>
           </CardHeader>
@@ -216,7 +220,7 @@ export function CSSEditorApp() {
             <div className="overflow-hidden rounded-md border bg-card shadow-sm">
               <div className="flex items-center justify-between border-b bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
                 <span>styleshift.css</span>
-                <span>{lineNumbers.length} lines</span>
+                <span>{t("editor.lines", { count: lineNumbers.length })}</span>
               </div>
               <div className="grid max-h-[60vh] min-h-96 grid-cols-[3.25rem_1fr] overflow-auto bg-zinc-950 text-zinc-100 dark:bg-black">
                 <div className="select-none border-r border-white/10 bg-black/25 py-3 pr-3 text-right font-mono text-xs leading-6 text-zinc-500">
@@ -249,7 +253,7 @@ body {
                 className="gap-2 bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
               >
                 <Save className="w-4 h-4" />
-                {isSaving ? "Saving..." : "Save CSS"}
+                {isSaving ? t("editor.saving") : t("editor.saveCss")}
               </Button>
 
               <Button
@@ -258,7 +262,7 @@ body {
                 className="gap-2"
               >
                 <Trash2 className="w-4 h-4" />
-                Remove CSS
+                {t("editor.removeCss")}
               </Button>
 
               <Button
@@ -268,18 +272,18 @@ body {
                 className="gap-2"
               >
                 <RotateCcw className="w-4 h-4" />
-                Reset
+                {t("common.reset")}
               </Button>
 
               <Button onClick={handleCopy} variant="outline" className="gap-2">
                 <Copy className="w-4 h-4" />
-                Copy
+                {t("common.copy")}
               </Button>
             </div>
 
             {hasChanges && (
               <p className="text-sm dark:text-amber-400 text-amber-600 pt-2">
-                ⚠️ You have unsaved changes
+                ⚠️ {t("editor.unsaved")}
               </p>
             )}
           </CardContent>

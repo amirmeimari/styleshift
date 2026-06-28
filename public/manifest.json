@@ -11,14 +11,25 @@
       "128": "icons/icon128.png"
     }
   },
-  "permissions": ["activeTab", "scripting", "storage", "tabs", "unlimitedStorage"],
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage",
+    "tabs",
+    "unlimitedStorage"
+  ],
   "host_permissions": ["<all_urls>"],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' data: https://cdn.jsdelivr.net;"
   },
   "web_accessible_resources": [
     {
-      "resources": ["css-editor.html", "font-manager.html"],
+      "resources": [
+        "css-editor.html",
+        "font-manager.html",
+        "settings.html",
+        "fonts/library/*.woff2"
+      ],
       "matches": ["<all_urls>"]
     }
   ],
