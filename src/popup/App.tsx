@@ -16,7 +16,6 @@ import { HelpTooltip, LabelWithHelp } from "@/components/help";
 import { useTheme } from "@/shared/use-theme";
 import { useI18n } from "@/shared/i18n/use-i18n";
 import { BUILTIN_FONT_NAMES } from "@/shared/builtin-fonts";
-import { FONT_STATUS_META, fontStatus } from "@/shared/font-status";
 import {
   Command,
   CommandEmpty,
@@ -54,25 +53,6 @@ import {
   updateHostSettings,
 } from "@/shared/styleshift";
 
-function FontStatusDot({
-  name,
-  uploadedNames,
-  label,
-}: {
-  name: string;
-  uploadedNames: string[];
-  label: string;
-}) {
-  const status = fontStatus(name, uploadedNames);
-  return (
-    <span
-      className={`inline-block h-1.5 w-1.5 shrink-0 rounded-full ${FONT_STATUS_META[status].dotClass}`}
-      title={label}
-      aria-label={label}
-    />
-  );
-}
-
 export function App() {
   const { t } = useI18n();
   const [hostname, setHostname] = useState("");
@@ -100,8 +80,6 @@ export function App() {
     () => Object.values(customFonts).map((font) => font.name),
     [customFonts],
   );
-  const statusLabel = (name: string) =>
-    t(FONT_STATUS_META[fontStatus(name, uploadedFontNames)].helpKey);
   const presetColumns = useMemo(() => {
     const columnSizes = [3, 3, 3, 3, 3, 3, 3, 3, 3];
     let startIndex = 0;
@@ -493,11 +471,6 @@ export function App() {
                               value={font}
                               onSelect={() => removeFontChip(font)}
                             >
-                              <FontStatusDot
-                                name={font}
-                                uploadedNames={uploadedFontNames}
-                                label={statusLabel(font)}
-                              />
                               <span className="flex-1 truncate">{font}</span>
                               <X
                                 className="h-4 w-4 text-muted-foreground"
@@ -527,11 +500,6 @@ export function App() {
                               value={font}
                               onSelect={() => addFontChip(font)}
                             >
-                              <FontStatusDot
-                                name={font}
-                                uploadedNames={uploadedFontNames}
-                                label={statusLabel(font)}
-                              />
                               <span className="flex-1 truncate">{font}</span>
                             </CommandItem>
                           ))}
@@ -559,11 +527,6 @@ export function App() {
                                 value={font}
                                 onSelect={() => addFontChip(font)}
                               >
-                                <FontStatusDot
-                                  name={font}
-                                  uploadedNames={uploadedFontNames}
-                                  label={statusLabel(font)}
-                                />
                                 <span className="flex-1 truncate">{font}</span>
                               </CommandItem>
                             ))}
@@ -732,11 +695,6 @@ export function App() {
                               value={font}
                               onSelect={() => chooseMonoFont(font)}
                             >
-                              <FontStatusDot
-                                name={font}
-                                uploadedNames={uploadedFontNames}
-                                label={statusLabel(font)}
-                              />
                               <span className="flex-1 truncate">{font}</span>
                             </CommandItem>
                           ))}
@@ -750,11 +708,6 @@ export function App() {
                               value={font}
                               onSelect={() => chooseMonoFont(font)}
                             >
-                              <FontStatusDot
-                                name={font}
-                                uploadedNames={uploadedFontNames}
-                                label={statusLabel(font)}
-                              />
                               <span className="flex-1 truncate">{font}</span>
                             </CommandItem>
                           ))}
