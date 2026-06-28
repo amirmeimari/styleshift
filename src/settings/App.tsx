@@ -29,11 +29,11 @@ export function SettingsApp() {
   }
 
   return (
-    <main className="min-h-screen bg-background p-6 text-foreground">
+    <main className="min-h-screen bg-background p-6 text-foreground fabric-weave">
       <div className="mx-auto max-w-2xl space-y-6">
         <header className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">{t("settings.title")}</h1>
+            <h1 className="text-2xl font-display">{t("settings.title")}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {t("settings.subtitle")}
             </p>
@@ -116,6 +116,7 @@ export function SettingsApp() {
                 />
                 <Button
                   type="button"
+                  variant="olive"
                   onClick={handleSaveKey}
                   className="gap-2 shrink-0"
                 >
@@ -134,7 +135,7 @@ export function SettingsApp() {
               href={GOOGLE_CONSOLE_URL}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1.5 text-sm text-primary underline-offset-4 hover:underline"
+              className="inline-flex items-center gap-1.5 text-sm text-[var(--fabric-blue-thread)] underline-offset-4 hover:underline"
             >
               <ExternalLink className="h-3.5 w-3.5" />
               {t("settings.getKey")}

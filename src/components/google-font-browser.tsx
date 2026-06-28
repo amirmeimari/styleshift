@@ -114,14 +114,14 @@ export function GoogleFontBrowser({ onImported }: GoogleFontBrowserProps) {
         {filtered.map((font) => (
           <div
             key={font.family}
-            className="flex items-center justify-between gap-2 rounded p-2 hover:bg-secondary/50"
+            className="relative flex items-center justify-between gap-2 rounded-lg border border-transparent p-2 hover:border-[var(--fabric-stitch)] hover:bg-[var(--fabric-linen)]"
           >
             <span className="min-w-0 flex-1 truncate text-sm">
               {font.family}
             </span>
             <Button
               type="button"
-              variant="ghost"
+              variant="olive"
               size="sm"
               className="shrink-0 gap-1.5"
               disabled={importing !== null}

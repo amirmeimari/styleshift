@@ -1,25 +1,6 @@
-/* Self-hosted UI fonts: Nunito Sans for Latin, Vazirmatn for Arabic/Farsi. */
-@font-face {
-  font-family: "Nunito Sans";
-  font-weight: 400;
-  font-style: normal;
-  font-display: swap;
-  src: url("/fonts/ui/nunito-sans-400.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Nunito Sans";
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
-  src: url("/fonts/ui/nunito-sans-600.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Nunito Sans";
-  font-weight: 700;
-  font-style: normal;
-  font-display: swap;
-  src: url("/fonts/ui/nunito-sans-700.woff2") format("woff2");
-}
+@import url("https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Karla:wght@400;500;600;700&display=swap");
+
+/* Self-hosted UI fonts: IM Fell English for Latin headings, Vazirmatn for Arabic/Farsi. */
 @font-face {
   font-family: "Vazirmatn";
   font-weight: 400;
@@ -48,48 +29,92 @@
 
 @layer base {
   :root {
-    --background: 240 5% 96.5%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 5% 92.5%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 5% 89.5%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 5.9% 10%;
-    --radius: 0.5rem;
+    --background: 34 38% 87%;
+    --foreground: 24 25% 15%;
+    --card: 33 30% 81%;
+    --card-foreground: 24 25% 15%;
+    --popover: 34 32% 85%;
+    --popover-foreground: 24 25% 15%;
+    --primary: 215 37% 28%;
+    --primary-foreground: 36 50% 95%;
+    --secondary: 33 30% 81%;
+    --secondary-foreground: 24 25% 15%;
+    --muted: 30 15% 72%;
+    --muted-foreground: 27 14% 48%;
+    --accent: 32 25% 68%;
+    --accent-foreground: 24 25% 15%;
+    --destructive: 9 36% 53%;
+    --destructive-foreground: 12 100% 97%;
+    --border: 28 24% 67%;
+    --input: 28 24% 67%;
+    --ring: 215 37% 28%;
+    --radius: 0.625rem;
+
+    --fabric-stitch: #a38362;
+    --fabric-canvas: #efe3cf;
+    --fabric-linen: #e4d3bb;
+    --fabric-raised: #d8c1a3;
+    --fabric-accent-surface: #c9b18f;
+
+    --fabric-denim: #2d4263;
+    --fabric-denim-light: #4f6588;
+    --fabric-denim-border: #1d2f4a;
+    --fabric-olive: #7a7d52;
+    --fabric-olive-border: #5d6040;
+    --fabric-terracotta: #b66e5a;
+    --fabric-terracotta-border: #8f4b3c;
+    --fabric-mustard: #d4a74e;
+    --fabric-mustard-border: #a87f2f;
+    --fabric-leather: #7a5538;
+    --fabric-leather-border: #4f3522;
+    --fabric-red-thread: #a04a42;
+    --fabric-blue-thread: #3d5b8b;
+    --fabric-green-thread: #5c7d58;
+    --fabric-rose: #c78b83;
   }
 
   .dark {
-    --background: 240 10% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 240 10% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 240 10% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 240 5.9% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 240 3.7% 15.9%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 240 3.7% 15.9%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 240 4.9% 83.9%;
+    --background: 24 20% 12%;
+    --foreground: 36 50% 95%;
+    --card: 24 18% 16%;
+    --card-foreground: 36 50% 95%;
+    --popover: 24 18% 16%;
+    --popover-foreground: 36 50% 95%;
+    --primary: 36 50% 95%;
+    --primary-foreground: 215 37% 28%;
+    --secondary: 24 14% 22%;
+    --secondary-foreground: 36 50% 95%;
+    --muted: 24 14% 22%;
+    --muted-foreground: 30 15% 60%;
+    --accent: 24 14% 22%;
+    --accent-foreground: 36 50% 95%;
+    --destructive: 9 36% 40%;
+    --destructive-foreground: 12 100% 97%;
+    --border: 24 14% 22%;
+    --input: 24 14% 22%;
+    --ring: 36 50% 85%;
+
+    --fabric-stitch: #6b5a42;
+    --fabric-canvas: #1f1810;
+    --fabric-linen: #2a2118;
+    --fabric-raised: #352a1f;
+    --fabric-accent-surface: #3f3226;
+
+    --fabric-denim: #4f6588;
+    --fabric-denim-light: #61759a;
+    --fabric-denim-border: #3a4e6e;
+    --fabric-olive: #90945e;
+    --fabric-olive-border: #6d7045;
+    --fabric-terracotta: #c78b83;
+    --fabric-terracotta-border: #a06a62;
+    --fabric-mustard: #d4a74e;
+    --fabric-mustard-border: #a87f2f;
+    --fabric-leather: #9a7558;
+    --fabric-leather-border: #6b5238;
+    --fabric-red-thread: #c06058;
+    --fabric-blue-thread: #5a7aaa;
+    --fabric-green-thread: #7a9d76;
+    --fabric-rose: #d4a09a;
   }
 }
 
@@ -100,10 +125,108 @@
 
   body {
     @apply bg-background text-foreground antialiased;
+    font-family: "Karla", system-ui, sans-serif;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: "IM Fell English", serif;
   }
 
   html.styleshift-popup-page,
   body.styleshift-popup-page {
     overflow: hidden;
+  }
+}
+
+@layer utilities {
+  .fabric-weave {
+    background-image:
+      repeating-linear-gradient(
+        90deg,
+        rgba(120, 90, 55, 0.06) 0 1px,
+        transparent 1px 4px
+      ),
+      repeating-linear-gradient(
+        0deg,
+        rgba(255, 250, 240, 0.1) 0 1px,
+        transparent 1px 4px
+      );
+    background-size: 4px 4px;
+  }
+
+  .dark .fabric-weave {
+    background-image:
+      repeating-linear-gradient(
+        90deg,
+        rgba(200, 180, 150, 0.04) 0 1px,
+        transparent 1px 4px
+      ),
+      repeating-linear-gradient(
+        0deg,
+        rgba(255, 250, 240, 0.03) 0 1px,
+        transparent 1px 4px
+      );
+    background-size: 4px 4px;
+  }
+
+  .fabric-stitch {
+    position: relative;
+  }
+
+  .fabric-stitch::before {
+    content: "";
+    position: absolute;
+    inset: 5px;
+    border: 1.3px dashed var(--fabric-stitch);
+    border-radius: calc(var(--radius) - 2px);
+    opacity: 0.55;
+    pointer-events: none;
+  }
+
+  .fabric-stitch-sm {
+    position: relative;
+  }
+
+  .fabric-stitch-sm::before {
+    content: "";
+    position: absolute;
+    inset: 3px;
+    border: 1px dashed var(--fabric-stitch);
+    border-radius: calc(var(--radius) - 4px);
+    opacity: 0.45;
+    pointer-events: none;
+  }
+
+  .fabric-stitch-pill {
+    position: relative;
+  }
+
+  .fabric-stitch-pill::before {
+    content: "";
+    position: absolute;
+    inset: 3px;
+    border: 1px dashed var(--fabric-stitch);
+    border-radius: 999px;
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  .fabric-separator {
+    height: 1px;
+    background: repeating-linear-gradient(
+      90deg,
+      var(--fabric-stitch) 0 5px,
+      transparent 5px 10px
+    );
+    opacity: 0.5;
+  }
+
+  .font-display {
+    font-family: "IM Fell English", serif;
   }
 }

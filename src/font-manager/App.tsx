@@ -16,11 +16,11 @@ export function FontManagerApp() {
   const [importNonce, setImportNonce] = useState(0);
 
   return (
-    <main className="min-h-screen bg-background p-6 text-foreground">
+    <main className="min-h-screen bg-background p-6 text-foreground fabric-weave">
       <div className="mx-auto max-w-2xl space-y-6">
         <header className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">{t("fonts.title")}</h1>
+            <h1 className="text-2xl font-display">{t("fonts.title")}</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {t("fonts.subtitle")}
             </p>
@@ -61,7 +61,7 @@ export function FontManagerApp() {
               {BUILTIN_FONTS.map((font) => (
                 <span
                   key={font.name}
-                  className="rounded-full border bg-secondary/50 px-3 py-1 text-sm"
+                  className="relative rounded-full border border-[var(--fabric-stitch)] bg-[var(--fabric-linen)] px-3 py-1 text-sm font-medium shadow-[inset_0_1px_0_rgba(255,255,255,.3)] fabric-stitch-pill"
                 >
                   {font.name}
                 </span>

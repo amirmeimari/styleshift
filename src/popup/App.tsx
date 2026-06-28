@@ -346,14 +346,14 @@ export function App() {
   }
 
   return (
-    <main className="w-[380px] overflow-hidden bg-background text-foreground">
-      <Card className="rounded-none border-0 bg-transparent shadow-none">
+    <main className="w-[380px] overflow-hidden bg-background text-foreground fabric-weave">
+      <Card className="rounded-none border-0 bg-transparent shadow-none !bg-none">
         <CardContent className="space-y-2 p-2.5">
           <section className="flex items-center justify-between gap-2">
             <div className="min-w-0 flex-1">
               <Label
                 htmlFor="styleshift-enabled"
-                className="text-lg font-semibold"
+                className="text-lg font-display"
               >
                 StyleShift
               </Label>
@@ -365,10 +365,10 @@ export function App() {
             </div>
             <div className="flex gap-1">
               <Button
-                variant="ghost"
+                variant="outline"
                 size="icon"
                 onClick={toggleTheme}
-                className="h-7 w-7 bg-card hover:bg-accent"
+                className="h-7 w-7"
                 title={t(
                   theme === "dark"
                     ? "theme.switchToLight"
@@ -419,14 +419,14 @@ export function App() {
                           <Badge
                             key={font}
                             variant="secondary"
-                            className="min-h-7 min-w-0 max-w-[155px] gap-1 pr-1 transition-colors group-hover:border-primary/25 group-hover:bg-zinc-300 group-hover:text-foreground dark:group-hover:border-white/25 dark:group-hover:bg-zinc-700 dark:group-hover:text-white"
+                            className="min-h-7 min-w-0 max-w-[155px] gap-1 pr-1 transition-colors group-hover:brightness-[.97]"
                           >
                             <span className="min-w-0 truncate">{font}</span>
                             <Button
                               type="button"
                               variant="ghost"
                               size="icon"
-                              className="h-4 w-4 rounded-sm group-hover:text-foreground hover:bg-white/40 hover:text-foreground dark:group-hover:text-white dark:hover:bg-white/10 dark:hover:text-white"
+                              className="h-4 w-4 rounded-sm hover:bg-foreground/10"
                               aria-label={`${t("common.close")} ${font}`}
                               onClick={(event) => {
                                 event.preventDefault();
@@ -562,10 +562,10 @@ export function App() {
                           variant="outline"
                           size="icon"
                           className={[
-                            "relative h-8 w-8 overflow-hidden border p-0 transition-colors",
+                            "relative h-8 w-8 overflow-hidden border p-0 transition-all fabric-stitch-sm",
                             active
-                              ? "border-primary/25 bg-secondary text-foreground hover:border-primary/45 hover:bg-zinc-300 hover:shadow-sm dark:border-white/25 dark:bg-zinc-800 dark:hover:border-white/50 dark:hover:bg-zinc-700"
-                              : "border-border bg-card opacity-65 hover:border-primary/35 hover:bg-white hover:opacity-100 hover:shadow-sm dark:bg-zinc-950 dark:hover:border-white/35 dark:hover:bg-zinc-900",
+                              ? "border-[var(--fabric-stitch)] bg-[var(--fabric-linen)] text-foreground hover:brightness-[.97] hover:shadow-sm"
+                              : "border-border bg-[var(--fabric-canvas)] opacity-55 hover:border-[var(--fabric-stitch)] hover:opacity-100 hover:shadow-sm",
                           ].join(" ")}
                           title={`${active ? "Disable" : "Enable"} ${preset.label}`}
                           aria-pressed={active}
@@ -644,14 +644,14 @@ export function App() {
                       {monoFontFamily ? (
                         <Badge
                           variant="secondary"
-                          className="min-h-7 max-w-[220px] gap-1 pr-1 transition-colors group-hover:border-primary/25 group-hover:bg-zinc-300 group-hover:text-foreground dark:group-hover:border-white/25 dark:group-hover:bg-zinc-700 dark:group-hover:text-white"
+                          className="min-h-7 max-w-[220px] gap-1 pr-1 transition-colors group-hover:brightness-[.97]"
                         >
                           <span className="truncate">{monoFontFamily}</span>
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="h-4 w-4 rounded-sm group-hover:text-foreground hover:bg-white/40 hover:text-foreground dark:group-hover:text-white dark:hover:bg-white/10 dark:hover:text-white"
+                            className="h-4 w-4 rounded-sm hover:bg-foreground/10"
                             aria-label={t("popup.codeFont")}
                             onClick={(event) => {
                               event.preventDefault();
@@ -728,7 +728,7 @@ export function App() {
             <div className="grid grid-cols-3 gap-2">
               <Button
                 type="button"
-                variant="outline"
+                variant="default"
                 size="sm"
                 onClick={handleOpenCSSEditor}
                 disabled={!canApply}
@@ -739,7 +739,7 @@ export function App() {
               </Button>
               <Button
                 type="button"
-                variant="outline"
+                variant="leather"
                 size="sm"
                 onClick={handleOpenFontManager}
                 className="h-8 gap-2"
@@ -749,7 +749,7 @@ export function App() {
               </Button>
               <Button
                 type="button"
-                variant="outline"
+                variant="olive"
                 size="sm"
                 onClick={handleOpenSettings}
                 className="h-8 gap-2"
