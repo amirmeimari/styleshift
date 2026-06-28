@@ -443,11 +443,6 @@ export function App() {
                             variant="secondary"
                             className="min-h-7 min-w-0 max-w-[155px] gap-1 pr-1 transition-colors group-hover:border-primary/25 group-hover:bg-zinc-300 group-hover:text-foreground dark:group-hover:border-white/25 dark:group-hover:bg-zinc-700 dark:group-hover:text-white"
                           >
-                            <FontStatusDot
-                              name={font}
-                              uploadedNames={uploadedFontNames}
-                              label={statusLabel(font)}
-                            />
                             <span className="min-w-0 truncate">{font}</span>
                             <Button
                               type="button"
