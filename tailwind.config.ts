@@ -3,9 +3,19 @@ import tailwindcssAnimate from "tailwindcss-animate";
 
 const config = {
   darkMode: "class",
-  content: ["./popup.html", "./css-editor.html", "./src/**/*.{ts,tsx}"],
+  content: [
+    "./popup.html",
+    "./css-editor.html",
+    "./font-manager.html",
+    "./settings.html",
+    "./src/**/*.{ts,tsx}",
+  ],
   theme: {
     extend: {
+      fontFamily: {
+        sans: ["Karla", "system-ui", "sans-serif"],
+        display: ["'IM Fell English'", "serif"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -45,6 +55,14 @@ const config = {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+      },
+      boxShadow: {
+        fabric: "0 3px 6px rgba(68,42,22,.08), 0 8px 24px rgba(68,42,22,.12)",
+        "fabric-raised":
+          "0 8px 16px rgba(68,42,22,.14), 0 16px 40px rgba(68,42,22,.18)",
+        "fabric-pressed": "inset 0 2px 4px rgba(0,0,0,.18)",
+        "fabric-button":
+          "0 2px 4px rgba(68,42,22,.18), inset 0 1px 0 rgba(255,255,255,.12)",
       },
     },
   },

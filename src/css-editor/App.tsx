@@ -158,12 +158,12 @@ export function CSSEditorApp() {
   const lineNumbers = customCSS.split("\n").map((_, index) => index + 1);
 
   return (
-    <div className="min-h-screen w-full bg-background p-6 text-foreground">
+    <div className="min-h-screen w-full bg-background p-6 text-foreground fabric-weave">
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold">{t("editor.title")}</h1>
-            <p className="text-sm dark:text-zinc-400 text-zinc-600 mt-1">
+            <h1 className="text-2xl font-display">{t("editor.title")}</h1>
+            <p className="text-sm text-muted-foreground mt-1">
               {t("editor.editingFor")}{" "}
               <span className="font-mono font-semibold">{hostname}</span>
             </p>
@@ -207,7 +207,7 @@ export function CSSEditorApp() {
               </CardTitle>
               <Button
                 onClick={handleFormat}
-                variant="outline"
+                variant="mustard"
                 size="sm"
                 className="gap-2"
               >
@@ -217,13 +217,13 @@ export function CSSEditorApp() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="overflow-hidden rounded-md border bg-card shadow-sm">
-              <div className="flex items-center justify-between border-b bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
+            <div className="overflow-hidden rounded-lg border border-border bg-card shadow-fabric fabric-stitch">
+              <div className="flex items-center justify-between border-b border-border bg-[var(--fabric-raised)]/60 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 <span>styleshift.css</span>
                 <span>{t("editor.lines", { count: lineNumbers.length })}</span>
               </div>
-              <div className="grid max-h-[60vh] min-h-96 grid-cols-[3.25rem_1fr] overflow-auto bg-zinc-950 text-zinc-100 dark:bg-black">
-                <div className="select-none border-r border-white/10 bg-black/25 py-3 pr-3 text-right font-mono text-xs leading-6 text-zinc-500">
+              <div className="grid max-h-[60vh] min-h-96 grid-cols-[3.25rem_1fr] overflow-auto bg-[#2E241D] text-[#F8F3EA] dark:bg-[#1a1410]">
+                <div className="select-none border-r border-[#A38362]/20 bg-black/15 py-3 pr-3 text-right font-mono text-xs leading-6 text-[#8D7C6A]">
                   {lineNumbers.map((line) => (
                     <div key={line}>{line}</div>
                   ))}
@@ -241,7 +241,7 @@ body {
 .header {
   color: red;
 }"
-                  className="min-h-96 resize-none border-0 bg-transparent px-4 py-3 font-mono text-sm leading-6 text-zinc-100 outline-none placeholder:text-zinc-500 focus:ring-0"
+                  className="min-h-96 resize-none border-0 bg-transparent px-4 py-3 font-mono text-sm leading-6 text-[#F8F3EA] outline-none placeholder:text-[#8D7C6A] focus:ring-0"
                 />
               </div>
             </div>
@@ -250,7 +250,8 @@ body {
               <Button
                 onClick={handleSave}
                 disabled={isSaving || !hasChanges}
-                className="gap-2 bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+                variant="olive"
+                className="gap-2"
               >
                 <Save className="w-4 h-4" />
                 {isSaving ? t("editor.saving") : t("editor.saveCss")}
@@ -268,21 +269,21 @@ body {
               <Button
                 onClick={handleReset}
                 disabled={!hasChanges}
-                variant="outline"
+                variant="secondary"
                 className="gap-2"
               >
                 <RotateCcw className="w-4 h-4" />
                 {t("common.reset")}
               </Button>
 
-              <Button onClick={handleCopy} variant="outline" className="gap-2">
+              <Button onClick={handleCopy} variant="default" className="gap-2">
                 <Copy className="w-4 h-4" />
                 {t("common.copy")}
               </Button>
             </div>
 
             {hasChanges && (
-              <p className="text-sm dark:text-amber-400 text-amber-600 pt-2">
+              <p className="text-sm text-[#B66E5A] pt-2">
                 ⚠️ {t("editor.unsaved")}
               </p>
             )}

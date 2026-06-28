@@ -3,7 +3,7 @@ import { CircleHelp } from "lucide-react";
 import { Label } from "@/components/ui/label";
 
 const helpButtonClass =
-  "inline-flex h-4 w-4 items-center justify-center rounded-sm text-muted-foreground outline-none transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring";
+  "inline-flex h-4 w-4 items-center justify-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-accent/50 hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring";
 
 export function HelpTooltip({ help, label }: { help: string; label: string }) {
   return (

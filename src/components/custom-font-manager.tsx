@@ -101,7 +101,7 @@ export function CustomFontManager({ onFontsChanged }: CustomFontManagerProps) {
       <div className="space-y-2">
         <Button
           type="button"
-          variant="outline"
+          variant="default"
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading}
           className="w-full gap-2"
@@ -131,7 +131,7 @@ export function CustomFontManager({ onFontsChanged }: CustomFontManagerProps) {
               {Object.values(customFonts).map((font) => (
                 <div
                   key={font.id}
-                  className="flex items-center justify-between gap-2 p-2 rounded bg-secondary/50"
+                  className="relative flex items-center justify-between gap-2 p-2 rounded-lg border border-[var(--fabric-stitch)] bg-[var(--fabric-linen)] fabric-stitch-sm"
                 >
                   <div className="min-w-0 flex-1">
                     <div className="text-sm font-medium truncate">
@@ -143,7 +143,7 @@ export function CustomFontManager({ onFontsChanged }: CustomFontManagerProps) {
                   </div>
                   <Button
                     type="button"
-                    variant="ghost"
+                    variant="destructive"
                     size="icon"
                     onClick={() => handleDeleteFont(font.id)}
                     className="h-8 w-8 shrink-0"
