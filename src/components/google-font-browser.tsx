@@ -13,9 +13,13 @@ import { updateCustomFont } from "@/shared/custom-fonts";
 
 type GoogleFontBrowserProps = {
   onImported?: () => void | Promise<void>;
+  onOpenSettings?: () => void;
 };
 
-export function GoogleFontBrowser({ onImported }: GoogleFontBrowserProps) {
+export function GoogleFontBrowser({
+  onImported,
+  onOpenSettings,
+}: GoogleFontBrowserProps) {
   const { t } = useI18n();
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [catalog, setCatalog] = useState<GoogleFontItem[]>([]);
@@ -59,10 +63,10 @@ export function GoogleFontBrowser({ onImported }: GoogleFontBrowserProps) {
     return matches.slice(0, 60);
   }, [catalog, query]);
 
-  async function openSettings() {
-    await chrome.tabs.create({
-      url: chrome.runtime.getURL("settings.html"),
-    });
+  function openSettings() {
+    if (onOpenSettings) {
+      onOpenSettings();
+    }
   }
 
   async function handleImport(family: string) {
