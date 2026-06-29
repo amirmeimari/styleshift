@@ -225,21 +225,6 @@ export const translations: Translations = {
     fa: "تنظیمات",
   },
 
-  "theme.switchToLight": {
-    en: "Switch to light mode",
-    es: "Cambiar a modo claro",
-    ar: "التبديل إلى الوضع الفاتح",
-    zh: "切换到浅色模式",
-    fa: "تغییر به حالت روشن",
-  },
-  "theme.switchToDark": {
-    en: "Switch to dark mode",
-    es: "Cambiar a modo oscuro",
-    ar: "التبديل إلى الوضع الداكن",
-    zh: "切换到深色模式",
-    fa: "تغییر به حالت تاریک",
-  },
-
   "availability.bundled": {
     en: "Bundled with StyleShift — always available.",
     es: "Incluida con StyleShift: siempre disponible.",
@@ -260,6 +245,21 @@ export const translations: Translations = {
     ar: "لا يمكن التحقق — لا تكشف المتصفحات عن الخطوط المثبتة على جهازك. سيُستخدم إن كان متوفرًا.",
     zh: "无法验证 — 浏览器不会公开你系统中已安装的字体。如果你的设备有它，则会使用。",
     fa: "قابل تأیید نیست — مرورگرها فاش نمی‌کنند چه فونت‌هایی روی سیستم شما نصب است. اگر دستگاه شما آن را داشته باشد استفاده می‌شود.",
+  },
+
+  "popup.fabricize": {
+    en: "Fabricize {page}",
+    es: "Fabricizar {page}",
+    ar: "تطبيق Fabric على {page}",
+    zh: "Fabric 化 {page}",
+    fa: "فابریکی‌کردن {page}",
+  },
+  "popup.fabricizeHelp": {
+    en: "Inject the Fabric UI design system into {page}. Transforms colors, surfaces, buttons, inputs, and typography to match the woven-textile aesthetic.",
+    es: "Inyecta el sistema de diseño Fabric UI en {page}. Transforma colores, superficies, botones, entradas y tipografía para un estilo textil tejido.",
+    ar: "حقن نظام تصميم Fabric UI في {page}. يحوّل الألوان والأسطح والأزرار وحقول الإدخال والخطوط إلى جمالية النسيج المحبوك.",
+    zh: "将 Fabric UI 设计系统注入 {page}。将颜色、表面、按钮、输入框和字体转换为织物纹理风格。",
+    fa: "سیستم طراحی Fabric UI را به {page} تزریق کنید. رنگ‌ها، سطوح، دکمه‌ها، ورودی‌ها و فونت‌ها را به زیبایی‌شناسی پارچه‌ای تبدیل می‌کند.",
   },
 
   "editor.title": {

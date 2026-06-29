@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Check, ExternalLink, Moon, Sun } from "lucide-react";
+import { ArrowLeft, Check, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { useTheme } from "@/shared/use-theme";
 import { useI18n } from "@/shared/i18n/use-i18n";
 import { LOCALES } from "@/shared/i18n/locales";
 import { readGoogleApiKey, saveGoogleApiKey } from "@/shared/google-fonts";
@@ -13,7 +12,6 @@ import { readGoogleApiKey, saveGoogleApiKey } from "@/shared/google-fonts";
 const GOOGLE_CONSOLE_URL = "https://console.cloud.google.com/apis/credentials";
 
 export function SettingsApp() {
-  const { theme, toggleTheme } = useTheme();
   const { t, locale, setLocale } = useI18n();
   const [apiKey, setApiKey] = useState("");
   const [justSaved, setJustSaved] = useState(false);
@@ -38,26 +36,10 @@ export function SettingsApp() {
               {t("settings.subtitle")}
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleTheme}
-              title={t(
-                theme === "dark" ? "theme.switchToLight" : "theme.switchToDark",
-              )}
-            >
-              {theme === "dark" ? (
-                <Sun className="h-4 w-4" />
-              ) : (
-                <Moon className="h-4 w-4" />
-              )}
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => window.close()}>
-              <ArrowLeft className="me-2 h-4 w-4" />
-              {t("common.close")}
-            </Button>
-          </div>
+          <Button variant="outline" size="sm" onClick={() => window.close()}>
+            <ArrowLeft className="me-2 h-4 w-4" />
+            {t("common.close")}
+          </Button>
         </header>
 
         <Separator />

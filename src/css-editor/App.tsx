@@ -3,10 +3,8 @@ import {
   ArrowLeft,
   Braces,
   Copy,
-  Moon,
   RotateCcw,
   Save,
-  Sun,
   Trash2,
   WandSparkles,
 } from "lucide-react";
@@ -21,7 +19,6 @@ import {
   updateHostSettings,
 } from "@/shared/styleshift";
 import type { ReinjectMessage } from "@/shared/messages";
-import { useTheme } from "@/shared/use-theme";
 import { useI18n } from "@/shared/i18n/use-i18n";
 import { formatCSS } from "./format-css";
 
@@ -32,7 +29,6 @@ export function CSSEditorApp() {
   const [customCSS, setCustomCSS] = useState(DEFAULT_SETTINGS.customCSS);
   const [savedCSS, setSavedCSS] = useState(DEFAULT_SETTINGS.customCSS);
   const [isSaving, setIsSaving] = useState(false);
-  const { theme, toggleTheme } = useTheme();
   const { t } = useI18n();
 
   useEffect(() => {
@@ -168,32 +164,15 @@ export function CSSEditorApp() {
               <span className="font-mono font-semibold">{hostname}</span>
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleTheme}
-              className="gap-2"
-              title={t(
-                theme === "dark" ? "theme.switchToLight" : "theme.switchToDark",
-              )}
-            >
-              {theme === "dark" ? (
-                <Sun className="w-4 h-4" />
-              ) : (
-                <Moon className="w-4 h-4" />
-              )}
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => window.close()}
-              className="gap-2"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              {t("common.close")}
-            </Button>
-          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => window.close()}
+            className="gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            {t("common.close")}
+          </Button>
         </div>
 
         <Separator className="mb-6" />
@@ -222,7 +201,7 @@ export function CSSEditorApp() {
                 <span>styleshift.css</span>
                 <span>{t("editor.lines", { count: lineNumbers.length })}</span>
               </div>
-              <div className="grid max-h-[60vh] min-h-96 grid-cols-[3.25rem_1fr] overflow-auto bg-[#2E241D] text-[#F8F3EA] dark:bg-[#1a1410]">
+              <div className="grid max-h-[60vh] min-h-96 grid-cols-[3.25rem_1fr] overflow-auto bg-[#2E241D] text-[#F8F3EA]">
                 <div className="select-none border-r border-[#A38362]/20 bg-black/15 py-3 pr-3 text-right font-mono text-xs leading-6 text-[#8D7C6A]">
                   {lineNumbers.map((line) => (
                     <div key={line}>{line}</div>

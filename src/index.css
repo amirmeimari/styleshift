@@ -72,50 +72,6 @@
     --fabric-green-thread: #5c7d58;
     --fabric-rose: #c78b83;
   }
-
-  .dark {
-    --background: 24 20% 12%;
-    --foreground: 36 50% 95%;
-    --card: 24 18% 16%;
-    --card-foreground: 36 50% 95%;
-    --popover: 24 18% 16%;
-    --popover-foreground: 36 50% 95%;
-    --primary: 36 50% 95%;
-    --primary-foreground: 215 37% 28%;
-    --secondary: 24 14% 22%;
-    --secondary-foreground: 36 50% 95%;
-    --muted: 24 14% 22%;
-    --muted-foreground: 30 15% 60%;
-    --accent: 24 14% 22%;
-    --accent-foreground: 36 50% 95%;
-    --destructive: 9 36% 40%;
-    --destructive-foreground: 12 100% 97%;
-    --border: 24 14% 22%;
-    --input: 24 14% 22%;
-    --ring: 36 50% 85%;
-
-    --fabric-stitch: #6b5a42;
-    --fabric-canvas: #1f1810;
-    --fabric-linen: #2a2118;
-    --fabric-raised: #352a1f;
-    --fabric-accent-surface: #3f3226;
-
-    --fabric-denim: #4f6588;
-    --fabric-denim-light: #61759a;
-    --fabric-denim-border: #3a4e6e;
-    --fabric-olive: #90945e;
-    --fabric-olive-border: #6d7045;
-    --fabric-terracotta: #c78b83;
-    --fabric-terracotta-border: #a06a62;
-    --fabric-mustard: #d4a74e;
-    --fabric-mustard-border: #a87f2f;
-    --fabric-leather: #9a7558;
-    --fabric-leather-border: #6b5238;
-    --fabric-red-thread: #c06058;
-    --fabric-blue-thread: #5a7aaa;
-    --fabric-green-thread: #7a9d76;
-    --fabric-rose: #d4a09a;
-  }
 }
 
 @layer base {
@@ -154,21 +110,6 @@
       repeating-linear-gradient(
         0deg,
         rgba(255, 250, 240, 0.1) 0 1px,
-        transparent 1px 4px
-      );
-    background-size: 4px 4px;
-  }
-
-  .dark .fabric-weave {
-    background-image:
-      repeating-linear-gradient(
-        90deg,
-        rgba(200, 180, 150, 0.04) 0 1px,
-        transparent 1px 4px
-      ),
-      repeating-linear-gradient(
-        0deg,
-        rgba(255, 250, 240, 0.03) 0 1px,
         transparent 1px 4px
       );
     background-size: 4px 4px;
