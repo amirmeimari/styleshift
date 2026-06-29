@@ -160,6 +160,7 @@ describe("font availability (mocked document.fonts)", () => {
       monoFontFamily: "",
       fontEnabled: false,
       customCSS: "",
+      fabricizeEnabled: false,
     };
     expect(fontStyleText(settings)).toBe("");
   });
@@ -171,6 +172,7 @@ describe("font availability (mocked document.fonts)", () => {
       monoFontFamily: "",
       fontEnabled: true,
       customCSS: "",
+      fabricizeEnabled: false,
     };
     const css = fontStyleText(settings);
     expect(css).toContain("font-family: Inter !important;");
@@ -184,6 +186,7 @@ describe("font availability (mocked document.fonts)", () => {
       monoFontFamily: "Fira Code",
       fontEnabled: true,
       customCSS: "",
+      fabricizeEnabled: false,
     };
     const css = fontStyleText(settings);
     expect(css).toContain('font-family: "Fira Code" !important;');
