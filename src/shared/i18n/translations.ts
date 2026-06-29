@@ -495,4 +495,55 @@ export const translations: Translations = {
     zh: "已保存",
     fa: "ذخیره شد",
   },
+
+  "tabs.fonts": {
+    en: "Fonts",
+    es: "Fuentes",
+    ar: "الخطوط",
+    zh: "字体",
+    fa: "فونت‌ها",
+  },
+  "tabs.upload": {
+    en: "Upload",
+    es: "Subir",
+    ar: "رفع",
+    zh: "上传",
+    fa: "بارگذاری",
+  },
+  "tabs.settings": {
+    en: "Settings",
+    es: "Ajustes",
+    ar: "الإعدادات",
+    zh: "设置",
+    fa: "تنظیمات",
+  },
+  "tabs.about": {
+    en: "About",
+    es: "Acerca de",
+    ar: "حول",
+    zh: "关于",
+    fa: "درباره",
+  },
+
+  "about.description": {
+    en: "StyleShift is a browser extension that lets you customize fonts and styles on any website. Choose from bundled fonts, upload your own, or import from Google Fonts — then apply them globally or per-site.",
+    es: "StyleShift es una extensión de navegador que permite personalizar fuentes y estilos en cualquier sitio web. Elige entre fuentes incluidas, sube las tuyas o importa de Google Fonts, y aplícalas globalmente o por sitio.",
+    ar: "StyleShift هو إضافة متصفح تتيح لك تخصيص الخطوط والأنماط على أي موقع. اختر من الخطوط المُضمّنة، أو ارفع خطوطك، أو استورد من Google Fonts — ثم طبّقها عالميًا أو لكل موقع.",
+    zh: "StyleShift 是一款浏览器扩展，可让你自定义任何网站的字体和样式。从内置字体中选择、上传自己的字体或从 Google Fonts 导入——然后全局或按网站应用。",
+    fa: "StyleShift یک افزونهٔ مرورگر است که به شما امکان می‌دهد فونت‌ها و سبک‌ها را در هر وب‌سایتی سفارشی کنید. از فونت‌های همراه انتخاب کنید، فونت خود را بارگذاری کنید، یا از Google Fonts وارد کنید — سپس آن‌ها را به‌صورت سراسری یا برای هر سایت اعمال کنید.",
+  },
+  "about.madeBy": {
+    en: "Made by",
+    es: "Hecho por",
+    ar: "صنع بواسطة",
+    zh: "开发者",
+    fa: "ساخته‌شده توسط",
+  },
+  "about.contact": {
+    en: "Contact",
+    es: "Contacto",
+    ar: "تواصل",
+    zh: "联系方式",
+    fa: "تماس",
+  },
 };

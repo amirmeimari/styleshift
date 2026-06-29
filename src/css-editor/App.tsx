@@ -217,7 +217,7 @@ export function CSSEditorApp() {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="overflow-hidden rounded-lg border border-border bg-card shadow-fabric fabric-stitch">
+            <div className="overflow-hidden rounded-lg border border-border bg-card shadow-fabric fabric-stitch p-1">
               <div className="flex items-center justify-between border-b border-border bg-[var(--fabric-raised)]/60 px-3 py-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                 <span>styleshift.css</span>
                 <span>{t("editor.lines", { count: lineNumbers.length })}</span>
