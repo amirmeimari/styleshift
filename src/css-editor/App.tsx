@@ -201,8 +201,8 @@ export function CSSEditorApp() {
                 <span>styleshift.css</span>
                 <span>{t("editor.lines", { count: lineNumbers.length })}</span>
               </div>
-              <div className="grid max-h-[60vh] min-h-96 grid-cols-[3.25rem_1fr] overflow-auto bg-[#2E241D] text-[#F8F3EA]">
-                <div className="select-none border-r border-[#A38362]/20 bg-black/15 py-3 pr-3 text-right font-mono text-xs leading-6 text-[#8D7C6A]">
+              <div className="grid max-h-[60vh] min-h-96 grid-cols-[3.25rem_1fr] overflow-auto">
+                <div className="select-none border-r border-border/30 py-3 pr-3 text-right font-mono text-xs leading-6 text-muted-foreground">
                   {lineNumbers.map((line) => (
                     <div key={line}>{line}</div>
                   ))}
@@ -220,7 +220,7 @@ body {
 .header {
   color: red;
 }"
-                  className="min-h-96 resize-none border-0 bg-transparent px-4 py-3 font-mono text-sm leading-6 text-[#F8F3EA] outline-none placeholder:text-[#8D7C6A] focus:ring-0"
+                  className="min-h-96 w-full resize-none border-0 bg-transparent px-4 py-3 font-mono text-sm leading-6 text-foreground outline-none placeholder:text-muted-foreground focus:ring-0"
                 />
               </div>
             </div>

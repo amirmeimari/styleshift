@@ -22,6 +22,7 @@ export type CustomFont = {
 export const GLOBAL_ENABLED_KEY = "__styleshift_enabled__";
 export const GLOBAL_FONT_STACK_KEY = "__styleshift_font_stack__";
 export const GLOBAL_MONO_FONT_STACK_KEY = "__styleshift_mono_font_stack__";
+export const AUTO_ENABLE_ALL_SITES_KEY = "__styleshift_auto_enable_all_sites__";
 export const CUSTOM_FONTS_KEY = "__styleshift_custom_fonts__";
 export const CUSTOM_FONT_INDEX_KEY = "__styleshift_custom_font_index__";
 export const CUSTOM_FONT_CHUNK_PREFIX = "__styleshift_custom_font_chunk__";
@@ -219,6 +220,44 @@ export function getHostname(url?: string): string {
   } catch {
     return "";
   }
+}
+
+export function getMainDomain(hostname: string): string {
+  if (!hostname) {
+    return "";
+  }
+
+  const parts = hostname.split(".");
+  if (parts.length <= 2) {
+    return hostname;
+  }
+
+  const twoPartTLDs = [
+    "co.uk",
+    "co.jp",
+    "co.kr",
+    "co.nz",
+    "co.in",
+    "co.za",
+    "com.au",
+    "com.br",
+    "com.cn",
+    "com.mx",
+    "com.tr",
+    "com.tw",
+    "com.sg",
+    "org.uk",
+    "net.au",
+    "ac.uk",
+    "gov.uk",
+  ];
+
+  const lastTwo = parts.slice(-2).join(".");
+  if (twoPartTLDs.includes(lastTwo)) {
+    return parts.slice(-3).join(".");
+  }
+
+  return parts.slice(-2).join(".");
 }
 
 export function hostMatchesPreset(
