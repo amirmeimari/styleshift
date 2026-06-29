@@ -108,9 +108,6 @@ export function App() {
   const [justSaved, setJustSaved] = useState(false);
   const [customCSS, setCustomCSS] = useState(DEFAULT_SETTINGS.customCSS);
   const [savedCSS, setSavedCSS] = useState(DEFAULT_SETTINGS.customCSS);
-  const [fabricizeEnabled, setFabricizeEnabled] = useState(
-    DEFAULT_SETTINGS.fabricizeEnabled,
-  );
   const [isSaving, setIsSaving] = useState(false);
   const { locale, setLocale } = useI18n();
   const uploadedFontNames = useMemo(
@@ -193,7 +190,6 @@ export function App() {
         setPresetStates(Object.fromEntries(presetEntries));
         setCustomCSS(settings.customCSS);
         setSavedCSS(settings.customCSS);
-        setFabricizeEnabled(settings.fabricizeEnabled);
       } catch (error) {
         console.error(error);
       }
@@ -311,13 +307,11 @@ export function App() {
       }));
     }
 
-    const hostSettings = await readHostSettings(hostname);
     await saveAndInject({
       fontFamily,
       monoFontFamily,
       fontEnabled: checked,
-      customCSS: hostSettings.customCSS,
-      fabricizeEnabled: hostSettings.fabricizeEnabled,
+      customCSS: (await readHostSettings(hostname)).customCSS,
     });
   }
 
@@ -413,17 +407,6 @@ export function App() {
     } catch (error) {
       console.error("Error removing CSS:", error);
     }
-  }
-
-  async function handleFabricizeToggle(checked: boolean) {
-    setFabricizeEnabled(checked);
-    if (!hostname) return;
-
-    const settings = await readHostSettings(hostname);
-    await saveAndInject({
-      ...settings,
-      fabricizeEnabled: checked,
-    });
   }
 
   function handleEditorKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
@@ -1012,26 +995,6 @@ export function App() {
                       {t("editor.unsaved")}
                     </p>
                   )}
-
-                  <Separator className="my-2" />
-
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id="fabricize-enabled"
-                      checked={fabricizeEnabled}
-                      onCheckedChange={(checked) =>
-                        handleFabricizeToggle(checked === true)
-                      }
-                      disabled={!canApply}
-                    />
-                    <Label htmlFor="fabricize-enabled" className="truncate">
-                      {t("popup.fabricize", { page: pageName })}
-                    </Label>
-                    <HelpTooltip
-                      label={t("popup.fabricize", { page: pageName })}
-                      help={t("popup.fabricizeHelp", { page: pageName })}
-                    />
-                  </div>
                 </section>
               )}
 
