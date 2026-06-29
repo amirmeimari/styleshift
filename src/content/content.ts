@@ -4,6 +4,7 @@
 // modules imported below.
 
 import {
+  AUTO_ENABLE_ALL_SITES_KEY,
   CUSTOM_FONTS_STYLE_ID,
   CUSTOM_FONTS_KEY,
   CUSTOM_FONT_CHUNK_PREFIX,
@@ -274,6 +275,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 
   const settingsChanged =
     globalChange ||
+    changes[AUTO_ENABLE_ALL_SITES_KEY] ||
     changes[GLOBAL_FONT_STACK_KEY] ||
     changes[GLOBAL_MONO_FONT_STACK_KEY] ||
     changes[hostname];

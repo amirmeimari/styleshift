@@ -480,6 +480,20 @@ export const translations: Translations = {
     zh: "已保存",
     fa: "ذخیره شد",
   },
+  "settings.autoEnableAllSites": {
+    en: "Enable for every website",
+    es: "Activar para todos los sitios web",
+    ar: "تفعيل لجميع المواقع",
+    zh: "为所有网站启用",
+    fa: "فعال‌سازی برای همهٔ وب‌سایت‌ها",
+  },
+  "settings.autoEnableAllSitesHelp": {
+    en: "Automatically apply fonts to every website you visit, not just the pre-activated ones.",
+    es: "Aplicar fuentes automáticamente en todos los sitios que visites, no solo los preactivados.",
+    ar: "تطبيق الخطوط تلقائيًا على جميع المواقع التي تزورها، وليس فقط المُفعّلة مسبقًا.",
+    zh: "自动将字体应用到你访问的所有网站，而不仅仅是预先激活的网站。",
+    fa: "به‌طور خودکار فونت‌ها را روی همهٔ وب‌سایت‌هایی که بازدید می‌کنید اعمال کنید، نه فقط سایت‌های از پیش فعال.",
+  },
 
   "tabs.fonts": {
     en: "Fonts",

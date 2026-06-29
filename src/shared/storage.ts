@@ -1,6 +1,7 @@
 // Global and per-host settings persisted in chrome.storage.local.
 
 import {
+  AUTO_ENABLE_ALL_SITES_KEY,
   DEFAULT_SETTINGS,
   GLOBAL_ENABLED_KEY,
   GLOBAL_FONT_STACK_KEY,
@@ -48,17 +49,33 @@ export async function updateGlobalMonoFontStack(
   await chrome.storage.local.set({ [GLOBAL_MONO_FONT_STACK_KEY]: fontStack });
 }
 
+export async function readAutoEnableAllSites(): Promise<boolean> {
+  const stored = (await chrome.storage.local.get(
+    AUTO_ENABLE_ALL_SITES_KEY,
+  )) as Record<string, boolean | undefined>;
+  return stored[AUTO_ENABLE_ALL_SITES_KEY] ?? false;
+}
+
+export async function updateAutoEnableAllSites(
+  enabled: boolean,
+): Promise<void> {
+  await chrome.storage.local.set({ [AUTO_ENABLE_ALL_SITES_KEY]: enabled });
+}
+
 export async function readHostSettings(
   hostname: string,
 ): Promise<StyleShiftSettings> {
   const stored = (await chrome.storage.local.get(
     hostname,
   )) as StyleShiftStorage;
+  const autoEnable = await readAutoEnableAllSites();
   const storedSettings = stored[hostname];
   return {
     ...DEFAULT_SETTINGS,
     ...storedSettings,
-    fontEnabled: storedSettings?.fontEnabled ?? isPreActivatedHost(hostname),
+    fontEnabled:
+      storedSettings?.fontEnabled ??
+      (autoEnable || isPreActivatedHost(hostname)),
   };
 }
 

@@ -49,9 +49,11 @@ import {
   POPULAR_SITE_PRESETS,
   getActiveTab,
   getHostname,
+  getMainDomain,
   hostMatchesPreset,
   isInjectableUrl,
   parseFontStack,
+  readAutoEnableAllSites,
   readCustomFonts,
   readGlobalEnabled,
   readGlobalFontStack,
@@ -59,6 +61,7 @@ import {
   readHostSettings,
   requestReinject,
   serializeFontStack,
+  updateAutoEnableAllSites,
   updateGlobalEnabled,
   updateGlobalFontStack,
   updateGlobalMonoFontStack,
@@ -109,6 +112,7 @@ export function App() {
   const [customCSS, setCustomCSS] = useState(DEFAULT_SETTINGS.customCSS);
   const [savedCSS, setSavedCSS] = useState(DEFAULT_SETTINGS.customCSS);
   const [isSaving, setIsSaving] = useState(false);
+  const [autoEnableAllSites, setAutoEnableAllSites] = useState(false);
   const { locale, setLocale } = useI18n();
   const uploadedFontNames = useMemo(
     () => Object.values(customFonts).map((font) => font.name),
@@ -180,7 +184,7 @@ export function App() {
         }
 
         setHostname(host);
-        setPageName(host);
+        setPageName(getMainDomain(host));
         setFontStack(hydratedFontStack);
         setFontFamily(hydratedFontFamily);
         setMonoFontFamily(hydratedMonoFontFamily);
@@ -197,6 +201,7 @@ export function App() {
 
     loadSettings();
     readGoogleApiKey().then(setApiKey);
+    readAutoEnableAllSites().then(setAutoEnableAllSites);
 
     return () => {
       mounted = false;
@@ -348,6 +353,11 @@ export function App() {
     window.setTimeout(() => setJustSaved(false), 2000);
   }
 
+  async function handleAutoEnableToggle(checked: boolean) {
+    setAutoEnableAllSites(checked);
+    await updateAutoEnableAllSites(checked);
+  }
+
   async function reloadCustomFonts() {
     const fonts = await readCustomFonts();
     setCustomFonts(fonts);
@@ -431,22 +441,21 @@ export function App() {
   const lineNumbers = customCSS.split("\n").map((_, index) => index + 1);
 
   return (
-    <main className="w-[480px] overflow-hidden bg-background text-foreground fabric-weave">
+    <main className="w-[480px] max-h-[600px] overflow-y-auto overflow-x-hidden bg-background text-foreground fabric-weave">
       <Card className="rounded-none border-0 bg-transparent shadow-none !bg-none p-1">
         <CardContent className="space-y-2 p-2.5">
           <section className="flex items-center justify-between gap-2">
-            <div className="min-w-0 flex-1">
-              <Label
-                htmlFor="styleshift-enabled"
-                className="text-lg font-display"
-              >
-                StyleShift
-              </Label>
-              <div className="text-[10px] leading-3 text-muted-foreground">
+            <div className="min-w-0 flex-1 p-1">
+              <img
+                src="/logo.png"
+                alt="StyleShift"
+                className="h-14 object-contain"
+              />
+              {/* <div className="text-[10px] leading-3 text-muted-foreground">
                 {globalEnabled
                   ? t("popup.statusEnabled")
                   : t("popup.statusDisabled")}
-              </div>
+              </div> */}
             </div>
             <div className="flex gap-1">
               <Switch
@@ -547,7 +556,13 @@ export function App() {
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 self-center opacity-50" />
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[448px] p-0" align="start">
+                        <PopoverContent
+                          className="w-[var(--radix-popover-trigger-width)] max-w-[calc(480px-1.25rem)] p-0"
+                          align="start"
+                          sideOffset={2}
+                          collisionPadding={8}
+                          usePortal={false}
+                        >
                           <Command shouldFilter={false}>
                             <CommandInput
                               placeholder={t("popup.addFont")}
@@ -560,7 +575,7 @@ export function App() {
                                 }
                               }}
                             />
-                            <CommandList>
+                            <CommandList className="max-h-[200px]">
                               <CommandEmpty>
                                 {t("popup.pressEnterSave")}
                               </CommandEmpty>
@@ -791,7 +806,13 @@ export function App() {
                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 self-center opacity-50" />
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-[448px] p-0" align="start">
+                        <PopoverContent
+                          className="w-[var(--radix-popover-trigger-width)] max-w-[calc(480px-1.25rem)] p-0"
+                          align="start"
+                          sideOffset={2}
+                          collisionPadding={8}
+                          usePortal={false}
+                        >
                           <Command shouldFilter={false}>
                             <CommandInput
                               placeholder={t("popup.addCodeFont")}
@@ -804,7 +825,7 @@ export function App() {
                                 }
                               }}
                             />
-                            <CommandList>
+                            <CommandList className="max-h-[200px]">
                               <CommandEmpty>
                                 {t("popup.typeFontEnter")}
                               </CommandEmpty>
@@ -930,8 +951,8 @@ export function App() {
                         {t("editor.lines", { count: lineNumbers.length })}
                       </span>
                     </div>
-                    <div className="grid max-h-[40vh] min-h-[160px] grid-cols-[2.5rem_1fr] overflow-auto bg-[#2E241D] text-[#F8F3EA]">
-                      <div className="select-none border-r border-[#A38362]/20 bg-black/15 py-2 pr-2 text-right font-mono text-[10px] leading-5 text-[#8D7C6A]">
+                    <div className="grid max-h-[40vh] min-h-[160px] grid-cols-[2.5rem_1fr] overflow-auto">
+                      <div className="select-none border-r border-border/30 py-2 pr-2 text-right font-mono text-[10px] leading-5 text-muted-foreground">
                         {lineNumbers.map((line) => (
                           <div key={line}>{line}</div>
                         ))}
@@ -942,7 +963,7 @@ export function App() {
                         onKeyDown={handleEditorKeyDown}
                         spellCheck={false}
                         placeholder={`/* Custom CSS */\nbody {\n  background: #f0f0f0;\n}`}
-                        className="min-h-[160px] resize-none border-0 bg-transparent px-3 py-2 font-mono text-xs leading-5 text-[#F8F3EA] outline-none placeholder:text-[#8D7C6A] focus:ring-0"
+                        className="min-h-[160px] w-full resize-none border-0 bg-transparent px-3 py-2 font-mono text-xs leading-5 text-foreground outline-none placeholder:text-muted-foreground focus:ring-0"
                         disabled={!canApply}
                       />
                     </div>
@@ -1000,6 +1021,27 @@ export function App() {
 
               {activeTab === "settings" && (
                 <section className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <Label
+                        htmlFor="auto-enable-all"
+                        className="text-sm font-semibold"
+                      >
+                        {t("settings.autoEnableAllSites")}
+                      </Label>
+                      <p className="mt-0.5 text-[10px] leading-tight text-muted-foreground">
+                        {t("settings.autoEnableAllSitesHelp")}
+                      </p>
+                    </div>
+                    <Switch
+                      id="auto-enable-all"
+                      checked={autoEnableAllSites}
+                      onCheckedChange={handleAutoEnableToggle}
+                    />
+                  </div>
+
+                  <Separator />
+
                   <div>
                     <Label className="text-sm font-semibold">
                       {t("settings.language")}
