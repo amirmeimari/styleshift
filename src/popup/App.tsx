@@ -7,11 +7,9 @@ import {
   ExternalLink,
   FileCode2,
   Info,
-  Moon,
   RotateCcw,
   Save,
   Settings,
-  Sun,
   Trash2,
   Type,
   Upload,
@@ -26,7 +24,6 @@ import { CustomFontManager } from "@/components/custom-font-manager";
 import { GoogleFontBrowser } from "@/components/google-font-browser";
 import { HelpTooltip, LabelWithHelp } from "@/components/help";
 import { Input } from "@/components/ui/input";
-import { useTheme } from "@/shared/use-theme";
 import { useI18n } from "@/shared/i18n/use-i18n";
 import { BUILTIN_FONT_NAMES, BUILTIN_FONTS } from "@/shared/builtin-fonts";
 import {
@@ -111,8 +108,10 @@ export function App() {
   const [justSaved, setJustSaved] = useState(false);
   const [customCSS, setCustomCSS] = useState(DEFAULT_SETTINGS.customCSS);
   const [savedCSS, setSavedCSS] = useState(DEFAULT_SETTINGS.customCSS);
+  const [fabricizeEnabled, setFabricizeEnabled] = useState(
+    DEFAULT_SETTINGS.fabricizeEnabled,
+  );
   const [isSaving, setIsSaving] = useState(false);
-  const { theme, toggleTheme } = useTheme();
   const { locale, setLocale } = useI18n();
   const uploadedFontNames = useMemo(
     () => Object.values(customFonts).map((font) => font.name),
@@ -194,6 +193,7 @@ export function App() {
         setPresetStates(Object.fromEntries(presetEntries));
         setCustomCSS(settings.customCSS);
         setSavedCSS(settings.customCSS);
+        setFabricizeEnabled(settings.fabricizeEnabled);
       } catch (error) {
         console.error(error);
       }
@@ -311,11 +311,13 @@ export function App() {
       }));
     }
 
+    const hostSettings = await readHostSettings(hostname);
     await saveAndInject({
       fontFamily,
       monoFontFamily,
       fontEnabled: checked,
-      customCSS: (await readHostSettings(hostname)).customCSS,
+      customCSS: hostSettings.customCSS,
+      fabricizeEnabled: hostSettings.fabricizeEnabled,
     });
   }
 
@@ -413,6 +415,17 @@ export function App() {
     }
   }
 
+  async function handleFabricizeToggle(checked: boolean) {
+    setFabricizeEnabled(checked);
+    if (!hostname) return;
+
+    const settings = await readHostSettings(hostname);
+    await saveAndInject({
+      ...settings,
+      fabricizeEnabled: checked,
+    });
+  }
+
   function handleEditorKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key !== "Tab") {
       return;
@@ -453,23 +466,6 @@ export function App() {
               </div>
             </div>
             <div className="flex gap-1">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={toggleTheme}
-                className="h-7 w-7"
-                title={t(
-                  theme === "dark"
-                    ? "theme.switchToLight"
-                    : "theme.switchToDark",
-                )}
-              >
-                {theme === "dark" ? (
-                  <Sun className="h-4 w-4" />
-                ) : (
-                  <Moon className="h-4 w-4" />
-                )}
-              </Button>
               <Switch
                 id="styleshift-enabled"
                 checked={globalEnabled}
@@ -493,7 +489,7 @@ export function App() {
                       "relative flex items-center justify-center gap-1.5 px-3 py-[11px] text-xs font-semibold border border-border rounded-t-lg cursor-pointer transition-all duration-150",
                       isActive
                         ? "bg-[var(--fabric-linen)] text-foreground border-b-[var(--fabric-linen)] shadow-[inset_0_2px_0_var(--fabric-denim)] z-20"
-                        : "bg-[#D3BE9F] text-[#7a6a58] shadow-[inset_0_-4px_8px_rgba(68,42,22,.12)] hover:text-foreground dark:bg-[#2a2118] dark:text-[#8a7a68]",
+                        : "bg-[#D3BE9F] text-[#7a6a58] shadow-[inset_0_-4px_8px_rgba(68,42,22,.12)] hover:text-foreground",
                     ].join(" ")}
                     onClick={() => setActiveTab(tab.id)}
                   >
@@ -503,7 +499,7 @@ export function App() {
                 );
               })}
             </nav>
-            <div className="relative rounded-b-lg rounded-tr-lg border border-border bg-[#F5EDE0] dark:bg-[#241d15] p-3 shadow-fabric fabric-weave fabric-stitch">
+            <div className="relative rounded-b-lg rounded-tr-lg border border-border bg-[#F5EDE0] p-3 shadow-fabric fabric-weave fabric-stitch">
               {activeTab === "fonts" && (
                 <>
                   <section className="space-y-2">
@@ -951,7 +947,7 @@ export function App() {
                         {t("editor.lines", { count: lineNumbers.length })}
                       </span>
                     </div>
-                    <div className="grid max-h-[40vh] min-h-[160px] grid-cols-[2.5rem_1fr] overflow-auto bg-[#2E241D] text-[#F8F3EA] dark:bg-[#1a1410]">
+                    <div className="grid max-h-[40vh] min-h-[160px] grid-cols-[2.5rem_1fr] overflow-auto bg-[#2E241D] text-[#F8F3EA]">
                       <div className="select-none border-r border-[#A38362]/20 bg-black/15 py-2 pr-2 text-right font-mono text-[10px] leading-5 text-[#8D7C6A]">
                         {lineNumbers.map((line) => (
                           <div key={line}>{line}</div>
@@ -1016,6 +1012,26 @@ export function App() {
                       {t("editor.unsaved")}
                     </p>
                   )}
+
+                  <Separator className="my-2" />
+
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="fabricize-enabled"
+                      checked={fabricizeEnabled}
+                      onCheckedChange={(checked) =>
+                        handleFabricizeToggle(checked === true)
+                      }
+                      disabled={!canApply}
+                    />
+                    <Label htmlFor="fabricize-enabled" className="truncate">
+                      {t("popup.fabricize", { page: pageName })}
+                    </Label>
+                    <HelpTooltip
+                      label={t("popup.fabricize", { page: pageName })}
+                      help={t("popup.fabricizeHelp", { page: pageName })}
+                    />
+                  </div>
                 </section>
               )}
 

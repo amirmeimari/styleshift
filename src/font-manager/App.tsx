@@ -1,16 +1,14 @@
 import { useState } from "react";
-import { ArrowLeft, Moon, Sun } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { CustomFontManager } from "@/components/custom-font-manager";
 import { GoogleFontBrowser } from "@/components/google-font-browser";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { useTheme } from "@/shared/use-theme";
 import { useI18n } from "@/shared/i18n/use-i18n";
 import { BUILTIN_FONTS } from "@/shared/builtin-fonts";
 
 export function FontManagerApp() {
-  const { theme, toggleTheme } = useTheme();
   const { t } = useI18n();
   // Bump to refresh the uploaded-fonts list after a Google Fonts import.
   const [importNonce, setImportNonce] = useState(0);
@@ -25,26 +23,10 @@ export function FontManagerApp() {
               {t("fonts.subtitle")}
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={toggleTheme}
-              title={t(
-                theme === "dark" ? "theme.switchToLight" : "theme.switchToDark",
-              )}
-            >
-              {theme === "dark" ? (
-                <Sun className="h-4 w-4" />
-              ) : (
-                <Moon className="h-4 w-4" />
-              )}
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => window.close()}>
-              <ArrowLeft className="me-2 h-4 w-4" />
-              {t("common.close")}
-            </Button>
-          </div>
+          <Button variant="outline" size="sm" onClick={() => window.close()}>
+            <ArrowLeft className="me-2 h-4 w-4" />
+            {t("common.close")}
+          </Button>
         </header>
 
         <Separator />
