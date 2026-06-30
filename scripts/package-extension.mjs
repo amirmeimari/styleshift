@@ -3,12 +3,18 @@
 // any source maps so nothing extraneous ships to users or reviewers.
 
 import { execFileSync } from "node:child_process";
-import { mkdirSync, rmSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync } from "node:fs";
 import { resolve } from "node:path";
 
 const root = process.cwd();
 const releaseDir = resolve(root, "release");
-const zipPath = resolve(releaseDir, "styleshift.zip");
+
+// manifest.json (not package.json) is the version the Web Store reads, so the
+// release filename is named from it to avoid the two ever drifting apart.
+const { version } = JSON.parse(
+  readFileSync(resolve(root, "public/manifest.json"), "utf8"),
+);
+const zipPath = resolve(releaseDir, `styleshift-v${version}.zip`);
 
 // 1. Fresh production build.
 execFileSync("npm", ["run", "build"], { stdio: "inherit" });
