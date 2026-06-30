@@ -25,12 +25,6 @@
 - **Global toggle** — enable or disable StyleShift for the current site straight from the popup header.
 - **Localized UI** 🌍 — popup is translated (English, Spanish, Arabic, Chinese, Persian, and more — see `src/shared/i18n`).
 
-## Screenshots
-
-<div align="center">
-  <img src="docs/screenshots/popup-tabs-grid.png" width="700" alt="StyleShift popup — Fonts, CSS, Settings, and About tabs" />
-</div>
-
 ## Quick Start
 
 ```bash
