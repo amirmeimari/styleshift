@@ -45,3 +45,7 @@ coverage/
 
 # graphify knowledge graph (generated; machine-specific paths)
 graphify-out/
+
+# Local git hooks (machine-specific paths; installed by graphify hook install)
+.husky/post-checkout
+.husky/post-commit
