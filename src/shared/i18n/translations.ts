@@ -516,6 +516,13 @@ export const translations: Translations = {
     zh: "设置",
     fa: "تنظیمات",
   },
+  "tabs.css": {
+    en: "CSS",
+    es: "CSS",
+    ar: "CSS ",
+    zh: "CSS",
+    fa: "CSS",
+  },
   "tabs.about": {
     en: "About",
     es: "Acerca de",

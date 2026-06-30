@@ -359,13 +359,25 @@ export function ensureStyle(id: string, cssText: string): void {
     return;
   }
 
-  const style = existing ?? document.createElement("style");
+  // Rewriting textContent on an existing style element forces the browser to
+  // reparse its CSSOM, which throws away any in-progress/loaded @font-face
+  // FontFace state and starts the font load over. loadAndApply() runs on
+  // every SPA navigation, focus change, and DOM mutation, so without this
+  // guard a bundled/custom web font would never get a chance to finish
+  // loading - document.fonts.check() would keep seeing a freshly reset,
+  // still-loading font and drop it from the applied stack. Skipping the
+  // write when content is unchanged keeps already-loaded fonts loaded.
+  if (existing) {
+    if (existing.textContent !== cssText) {
+      existing.textContent = cssText;
+    }
+    return;
+  }
+
+  const style = document.createElement("style");
   style.id = id;
   style.textContent = cssText;
-
-  if (!existing) {
-    (document.head || document.documentElement).append(style);
-  }
+  (document.head || document.documentElement).append(style);
 }
 
 export function applySettings(

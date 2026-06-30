@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   availableFontStack,
+  ensureStyle,
   fontStyleText,
   formatFontFamily,
   generateCustomFontFace,
@@ -127,6 +128,44 @@ describe("generateCustomFontFace", () => {
     expect(css).toContain("font-family: 'MyFont'");
     expect(css).toContain("data:application/woff2;base64,AAAA");
     expect(css).toContain("format('woff2')");
+  });
+});
+
+describe("ensureStyle", () => {
+  afterEach(() => {
+    document.getElementById("test-style")?.remove();
+  });
+
+  it("does not touch textContent when content is unchanged", () => {
+    ensureStyle("test-style", "body { color: red; }");
+    const style = document.getElementById("test-style") as HTMLStyleElement;
+
+    // Re-creating @font-face rules resets their FontFace load state, which is
+    // exactly what breaks fonts across SPA navigations (loadAndApply() calls
+    // ensureStyle on every route change with identical @font-face content).
+    // Spying on the textContent setter lets us assert it's skipped entirely.
+    const setterSpy = vi.fn();
+    Object.defineProperty(style, "textContent", {
+      configurable: true,
+      get: () => "body { color: red; }",
+      set: setterSpy,
+    });
+
+    ensureStyle("test-style", "body { color: red; }");
+    expect(setterSpy).not.toHaveBeenCalled();
+  });
+
+  it("updates textContent when content changes", () => {
+    ensureStyle("test-style", "body { color: red; }");
+    ensureStyle("test-style", "body { color: blue; }");
+    const style = document.getElementById("test-style") as HTMLStyleElement;
+    expect(style.textContent).toBe("body { color: blue; }");
+  });
+
+  it("removes the element when cssText is blank", () => {
+    ensureStyle("test-style", "body { color: red; }");
+    ensureStyle("test-style", "");
+    expect(document.getElementById("test-style")).toBeNull();
   });
 });
 
