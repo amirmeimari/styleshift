@@ -78,7 +78,7 @@ type TabId = "fonts" | "upload" | "css" | "settings" | "about";
 const TABS: { id: TabId; icon: typeof Type; labelKey: string }[] = [
   { id: "fonts", icon: Type, labelKey: "tabs.fonts" },
   { id: "upload", icon: Upload, labelKey: "tabs.upload" },
-  { id: "css", icon: FileCode2, labelKey: "popup.css" },
+  { id: "css", icon: FileCode2, labelKey: "tabs.css" },
   { id: "settings", icon: Settings, labelKey: "tabs.settings" },
   { id: "about", icon: Info, labelKey: "tabs.about" },
 ];
@@ -214,8 +214,15 @@ export function App() {
     }
 
     await updateHostSettings(hostname, nextSettings);
-    const tab = await getActiveTab();
-    await requestReinject(tab.id);
+
+    try {
+      const tab = await getActiveTab();
+      await requestReinject(tab.id);
+    } catch (error) {
+      // Active tab may no longer be injectable (navigated to chrome://, the
+      // Web Store, etc.) - the setting is already saved, just skip the nudge.
+      console.error(error);
+    }
   }
 
   async function handleGlobalToggle(checked: boolean) {
@@ -342,8 +349,13 @@ export function App() {
         monoFontFamily,
         fontEnabled: next,
       });
-      const tab = await getActiveTab();
-      await requestReinject(tab.id);
+
+      try {
+        const tab = await getActiveTab();
+        await requestReinject(tab.id);
+      } catch (error) {
+        console.error(error);
+      }
     }
   }
 
@@ -438,7 +450,6 @@ export function App() {
   }
 
   const hasChanges = customCSS !== savedCSS;
-  const lineNumbers = customCSS.split("\n").map((_, index) => index + 1);
 
   return (
     <main className="w-[480px] max-h-[600px] overflow-y-auto overflow-x-hidden bg-background text-foreground fabric-weave">
@@ -469,7 +480,7 @@ export function App() {
           <Separator />
 
           <div>
-            <nav className="relative z-10 flex gap-[6px] mb-[-1px]">
+            <nav className="relative z-10 flex gap-[6px] mb-[-1px] ms-[10px]">
               {TABS.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -491,7 +502,7 @@ export function App() {
                 );
               })}
             </nav>
-            <div className="relative rounded-b-lg rounded-tr-lg border border-border bg-[#F5EDE0] p-3 shadow-fabric fabric-weave fabric-stitch">
+            <div className="relative rounded-lg border border-border bg-[#F5EDE0] p-3 shadow-fabric fabric-weave fabric-stitch">
               {activeTab === "fonts" && (
                 <>
                   <section className="space-y-2">
@@ -944,30 +955,15 @@ export function App() {
                       </span>
                     </p>
                   )}
-                  <div className="overflow-hidden rounded-lg border border-border bg-card shadow-fabric fabric-stitch">
-                    <div className="flex items-center justify-between border-b border-border bg-[var(--fabric-raised)]/60 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                      <span>styleshift.css</span>
-                      <span>
-                        {t("editor.lines", { count: lineNumbers.length })}
-                      </span>
-                    </div>
-                    <div className="grid max-h-[40vh] min-h-[160px] grid-cols-[2.5rem_1fr] overflow-auto">
-                      <div className="select-none border-r border-border/30 py-2 pr-2 text-right font-mono text-[10px] leading-5 text-muted-foreground">
-                        {lineNumbers.map((line) => (
-                          <div key={line}>{line}</div>
-                        ))}
-                      </div>
-                      <textarea
-                        value={customCSS}
-                        onChange={(e) => setCustomCSS(e.target.value)}
-                        onKeyDown={handleEditorKeyDown}
-                        spellCheck={false}
-                        placeholder={`/* Custom CSS */\nbody {\n  background: #f0f0f0;\n}`}
-                        className="min-h-[160px] w-full resize-none border-0 bg-transparent px-3 py-2 font-mono text-xs leading-5 text-foreground outline-none placeholder:text-muted-foreground focus:ring-0"
-                        disabled={!canApply}
-                      />
-                    </div>
-                  </div>
+                  <textarea
+                    value={customCSS}
+                    onChange={(e) => setCustomCSS(e.target.value)}
+                    onKeyDown={handleEditorKeyDown}
+                    spellCheck={false}
+                    placeholder={`/* Custom CSS */\nbody {\n  background: #f0f0f0;\n}`}
+                    className="min-h-[160px] max-h-[40vh] w-full resize-none rounded-lg border border-border bg-card px-3 py-2 font-mono text-xs leading-5 text-foreground shadow-fabric outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-[var(--fabric-stitch)]"
+                    disabled={!canApply}
+                  />
 
                   <div className="flex flex-wrap gap-1.5">
                     <Button
