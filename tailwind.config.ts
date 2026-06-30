@@ -2,13 +2,7 @@ import type { Config } from "tailwindcss";
 import tailwindcssAnimate from "tailwindcss-animate";
 
 const config = {
-  content: [
-    "./popup.html",
-    "./css-editor.html",
-    "./font-manager.html",
-    "./settings.html",
-    "./src/**/*.{ts,tsx}",
-  ],
+  content: ["./popup.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
       fontFamily: {

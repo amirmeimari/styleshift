@@ -398,11 +398,22 @@ export function removeCSS(): void {
   document.getElementById(CSS_STYLE_ID)?.remove();
 }
 
+// Escapes a string so it is safe to embed inside a single-quoted CSS string
+// (e.g. a font-family name). Custom font names are user-supplied, so without
+// this a name containing a quote could terminate the string early and inject
+// arbitrary CSS into the injected <style>.
+function escapeCssString(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+}
+
 export function generateCustomFontFace(font: CustomFont): string {
   const fontFormat = font.format === "woff2" ? "woff2" : font.format || "woff2";
+  // base64 data is restricted to [A-Za-z0-9+/=]; strip anything else so a
+  // crafted payload cannot break out of the url() value.
+  const safeData = font.data.replace(/[^A-Za-z0-9+/=]/g, "");
   return `@font-face {
-  font-family: '${font.name}';
-  src: url('data:application/${fontFormat};base64,${font.data}') format('${fontFormat}');
+  font-family: '${escapeCssString(font.name)}';
+  src: url('data:application/${fontFormat};base64,${safeData}') format('${fontFormat}');
 }`;
 }
 
