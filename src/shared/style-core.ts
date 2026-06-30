@@ -334,21 +334,23 @@ export function fontStyleText(
     customFontNames,
   );
 
-  if (
-    !settings.fontEnabled ||
-    !settings.fontFamily.trim() ||
-    availableFonts.length === 0
-  ) {
+  if (!settings.fontEnabled) {
     return "";
   }
 
-  const fontFamily = serializeFontStack(availableFonts);
   const monoFontFamily = serializeFontStack(availableMonoFonts);
   const monoRule = monoFontFamily
-    ? `\n${CODE_TARGET_SELECTOR} { font-family: ${monoFontFamily} !important; }`
+    ? `${CODE_TARGET_SELECTOR} { font-family: ${monoFontFamily} !important; }`
     : "";
 
-  return `${TEXT_TARGET_SELECTOR}, ${FORM_TEXT_TARGET_SELECTOR} { font-family: ${fontFamily} !important; }${monoRule}`;
+  if (!settings.fontFamily.trim() || availableFonts.length === 0) {
+    return monoRule;
+  }
+
+  const fontFamily = serializeFontStack(availableFonts);
+  const mainRule = `${TEXT_TARGET_SELECTOR}, ${FORM_TEXT_TARGET_SELECTOR} { font-family: ${fontFamily} !important; }`;
+
+  return monoRule ? `${mainRule}\n${monoRule}` : mainRule;
 }
 
 export function ensureStyle(id: string, cssText: string): void {
