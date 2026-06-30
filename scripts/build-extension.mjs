@@ -1,8 +1,8 @@
 // StyleShift build.
 //
-// Extension *pages* (popup, css-editor, font-manager) are loaded as ES modules
-// from the extension origin, so normal Vite/Rollup code-splitting is fine and
-// lets them share the `style-core`/`storage`/etc. chunks.
+// The extension *page* (popup) is loaded as an ES module from the extension
+// origin, so normal Vite/Rollup code-splitting is fine and lets it share the
+// `style-core`/`storage`/etc. chunks.
 //
 // The *content script* and the *service worker* cannot use code-splitting:
 // classic content scripts are not ES modules and cannot resolve `import`s, so
@@ -17,7 +17,7 @@ import { build } from "vite";
 const root = process.cwd();
 const alias = { "@": resolve(root, "./src") };
 
-// 1. HTML pages — module output, shared chunks allowed. Clears dist first.
+// 1. Popup page — module output, shared chunks allowed. Clears dist first.
 await build({
   configFile: false,
   plugins: [react()],
@@ -28,9 +28,6 @@ await build({
     rollupOptions: {
       input: {
         popup: resolve(root, "popup.html"),
-        "css-editor": resolve(root, "css-editor.html"),
-        "font-manager": resolve(root, "font-manager.html"),
-        settings: resolve(root, "settings.html"),
       },
       output: {
         entryFileNames: "[name].js",

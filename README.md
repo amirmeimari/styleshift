@@ -48,7 +48,7 @@ Then load the extension in Chrome:
 ## Tech Stack
 
 - **React + TypeScript + Vite** — popup, settings, and editor pages.
-- **Chrome Extension Manifest V3** — `activeTab`, `scripting`, `storage`, `tabs` permissions, `<all_urls>` host permission.
+- **Chrome Extension Manifest V3** — `activeTab`, `scripting`, `storage`, `unlimitedStorage` permissions, `<all_urls>` host permission.
 - **Tailwind CSS** — UI styling.
 - **Vitest** — unit tests.
 
@@ -72,10 +72,14 @@ public/manifest.json          Extension manifest
 ```bash
 npm run dev      # Vite dev server for the popup/editor/settings pages
 npm run build    # Production build -> dist/
+npm run package  # Build + zip an upload-ready release/styleshift.zip
 npm run test     # Run unit tests with Vitest
 npm run lint     # ESLint
 npm run format   # Prettier
 ```
+
+See [PRIVACY.md](PRIVACY.md) for the privacy policy (no data leaves your device
+except optional Google Fonts imports using your own API key).
 
 ## Storage Schema
 

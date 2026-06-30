@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && node scripts/build-extension.mjs",
+    "package": "node scripts/package-extension.mjs",
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
