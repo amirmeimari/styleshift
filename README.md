@@ -18,7 +18,7 @@
 ## Features
 
 - **Font injection** 🔤 — bundled fonts, custom uploads, or Google Fonts, applied per site or globally.
-- **One-click site shortcuts** ⚡ — pre-activated toggles for Google, Gmail, GitHub, X, Reddit, Notion, Slack, and more.
+- **One-click site shortcuts** ⚡ — pre-activated toggles for popular sites, ready to enable in one click.
 - **Code font** 🖋️ — set a separate monospace font for code blocks.
 - **Custom CSS editor** 🎨 — write, format, and apply raw CSS per site, with save/remove/reset/copy actions.
 - **Persistent, per-hostname settings** 💾 — everything is stored in `chrome.storage.local` and re-applied automatically on page load/navigation.
