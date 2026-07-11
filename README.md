@@ -10,6 +10,7 @@
 [![Manifest](https://img.shields.io/badge/manifest-v3-blue)](public/manifest.json)
 [![TypeScript](https://img.shields.io/badge/TypeScript-React-3178c6)](package.json)
 [![Build](https://img.shields.io/badge/build-vite-646cff)](vite.config.ts)
+[![Chrome Web Store](https://img.shields.io/badge/Chrome_Web_Store-Install-4285F4?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/styleshift/mcaoegkknaepofhmlljnemngbkemmkea)
 
 </div>
 
@@ -25,7 +26,11 @@
 - **Global toggle** — enable or disable StyleShift for the current site straight from the popup header.
 - **Localized UI** 🌍 — popup is translated (English, Spanish, Arabic, Chinese, Persian, and more — see `src/shared/i18n`).
 
-## Quick Start
+## Install
+
+**[Get StyleShift on the Chrome Web Store](https://chromewebstore.google.com/detail/styleshift/mcaoegkknaepofhmlljnemngbkemmkea)**
+
+## Quick Start (from source)
 
 ```bash
 npm install
