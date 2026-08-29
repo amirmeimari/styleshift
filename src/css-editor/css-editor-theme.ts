@@ -12,6 +12,9 @@ import { tags } from "@lezer/highlight";
 
 export const cssEditorTheme = EditorView.theme({
   "&": {
+    // Declared once and reused by .cm-scroller and .cm-content below - see the
+    // note on .cm-gutters for why both of them need it spelled out.
+    "--styleshift-editor-min-height": "160px",
     fontSize: "13px",
     color: "hsl(var(--foreground))",
     backgroundColor: "hsl(var(--card))",
@@ -29,15 +32,31 @@ export const cssEditorTheme = EditorView.theme({
     fontFamily:
       "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
     lineHeight: "1.25rem",
-    minHeight: "160px",
+    minHeight: "var(--styleshift-editor-min-height)",
     maxHeight: "40vh",
   },
   ".cm-content": {
     padding: "8px 0",
     caretColor: "var(--fabric-denim)",
+    // CodeMirror's base theme gives this `min-height: 100%` so the editable
+    // area fills the box. That percentage resolves against .cm-scroller, whose
+    // own height is a percentage of an auto-height .cm-editor - an indefinite
+    // chain, so it collapses to `auto` and the content box ends at the last
+    // line. Restate it as a length so it actually resolves. A min-height (not
+    // stretch) because the box still has to grow past it for a long document.
+    minHeight: "var(--styleshift-editor-min-height)",
   },
   ".cm-line": { padding: "0 10px" },
   ".cm-gutters": {
+    // Same broken percentage chain as .cm-content above: the base theme's
+    // `height: 100%` collapses to the content height, so the linen column and
+    // its stitched edge stopped at the last line and left a stub floating in
+    // the top-left of an otherwise empty editor. Stretching to the flex line
+    // fills the box; CodeMirror's own inline `min-height: <content height>`
+    // still wins for a document taller than the viewport, so the column keeps
+    // tracking the text when it scrolls.
+    alignSelf: "stretch",
+    height: "auto",
     backgroundColor: "var(--fabric-linen)",
     color: "hsl(var(--muted-foreground))",
     border: "none",
