@@ -404,6 +404,11 @@ export function App() {
       return;
     }
 
+    // Only cssEnabled changes. The rest of the record round-trips through
+    // readHostSettings, which resolves fontEnabled from the auto-enable and
+    // preset rules; spreading the raw stored record instead would write
+    // `fontEnabled: false` for a host that has none yet, switching the page's
+    // font off along with its CSS. src/content/content.test.ts pins this.
     const settings = await readHostSettings(hostname);
     await saveAndInject({ ...settings, cssEnabled: checked });
   }
@@ -995,7 +1000,12 @@ export function App() {
                       value={customCSS}
                       onChange={setCustomCSS}
                       readOnly={!canApply}
-                      placeholder={`/* Custom CSS */\nbody {\n  background: #f0f0f0;\n}`}
+                      // A single line: CodeMirror renders the placeholder
+                      // inside document line 1, so an embedded newline wraps
+                      // there instead of becoming a second line - the gutter
+                      // still reads "1" while four rows of grey text sit next
+                      // to it, which looks like a broken editor.
+                      placeholder={t("editor.cssPlaceholder")}
                     />
                   </Suspense>
 

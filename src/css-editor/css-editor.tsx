@@ -44,7 +44,7 @@ import {
   completionKeymap,
 } from "@codemirror/autocomplete";
 import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
-import { lintKeymap, linter, lintGutter } from "@codemirror/lint";
+import { lintKeymap, linter } from "@codemirror/lint";
 import { css as cssLanguage } from "@codemirror/lang-css";
 import { cssEditorHighlighting, cssEditorTheme } from "./css-editor-theme";
 import { cssDiagnostics } from "./css-lint";
@@ -63,7 +63,9 @@ const editableCompartment = new Compartment();
 function baseExtensions(placeholderText: string): Extension[] {
   return [
     lineNumbers(),
-    lintGutter(),
+    // No lintGutter(): its marker column is empty almost all the time and the
+    // popup is only 480px wide. linter() below still draws the wavy underlines
+    // and their hover tooltips, which is where the diagnostics are read.
     highlightActiveLineGutter(),
     highlightSpecialChars(),
     history(),

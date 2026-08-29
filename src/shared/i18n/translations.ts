@@ -233,6 +233,13 @@ export const translations: Translations = {
     zh: "正在编辑 CSS：",
     fa: "ویرایش CSS برای:",
   },
+  "editor.cssPlaceholder": {
+    en: "/* Custom CSS for this site */",
+    es: "/* CSS personalizado para este sitio */",
+    ar: "/* CSS مخصّص لهذا الموقع */",
+    zh: "/* 此网站的自定义 CSS */",
+    fa: "/* CSS سفارشی برای این سایت */",
+  },
   "editor.customCSS": {
     en: "Custom CSS",
     es: "CSS personalizado",

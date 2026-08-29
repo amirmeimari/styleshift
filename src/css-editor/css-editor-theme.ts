@@ -12,7 +12,7 @@ import { tags } from "@lezer/highlight";
 
 export const cssEditorTheme = EditorView.theme({
   "&": {
-    fontSize: "12px",
+    fontSize: "13px",
     color: "hsl(var(--foreground))",
     backgroundColor: "hsl(var(--card))",
     borderRadius: "var(--radius)",
@@ -52,6 +52,15 @@ export const cssEditorTheme = EditorView.theme({
   ".cm-activeLineGutter": {
     backgroundColor: "rgba(163,131,98,.18)",
     color: "hsl(var(--foreground))",
+  },
+  // CodeMirror paints the active line whether or not the editor has focus. On
+  // an untouched editor that means a tinted band and a filled gutter cell sat
+  // over the placeholder, reading as selected content rather than a hint.
+  // Show the highlight only while the user is actually editing.
+  "&:not(.cm-focused) .cm-activeLine": { backgroundColor: "transparent" },
+  "&:not(.cm-focused) .cm-activeLineGutter": {
+    backgroundColor: "transparent",
+    color: "hsl(var(--muted-foreground))",
   },
   "&.cm-focused .cm-cursor": { borderInlineStartColor: "var(--fabric-denim)" },
   "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection":
