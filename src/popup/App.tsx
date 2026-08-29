@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState, type KeyboardEvent } from "react";
+import { Suspense, lazy, useEffect, useMemo, useState } from "react";
 import {
   Braces,
   ChevronsUpDown,
   Check,
   Copy,
-  ExternalLink,
   FileCode2,
   Info,
   RotateCcw,
@@ -21,11 +20,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { CustomFontManager } from "@/components/custom-font-manager";
-import { GoogleFontBrowser } from "@/components/google-font-browser";
+import { FontStatusDot } from "@/components/font-status-dot";
 import { HelpTooltip, LabelWithHelp } from "@/components/help";
-import { Input } from "@/components/ui/input";
 import { useI18n } from "@/shared/i18n/use-i18n";
-import { BUILTIN_FONT_NAMES, BUILTIN_FONTS } from "@/shared/builtin-fonts";
+import {
+  BUILTIN_FONTS,
+  BUILTIN_MONO_FONT_NAMES,
+  BUILTIN_SANS_FONT_NAMES,
+} from "@/shared/builtin-fonts";
 import {
   Command,
   CommandEmpty,
@@ -67,9 +69,16 @@ import {
   updateGlobalMonoFontStack,
   updateHostSettings,
 } from "@/shared/styleshift";
-import { readGoogleApiKey, saveGoogleApiKey } from "@/shared/google-fonts";
 import type { ReinjectMessage } from "@/shared/messages";
 import { formatCSS } from "@/css-editor/format-css";
+// CodeMirror is by far the largest dependency in the popup and only the CSS
+// tab needs it, so it is split into its own chunk and fetched on first use.
+// The chunk is served from the extension itself, so this costs no network.
+const CssEditor = lazy(() =>
+  import("@/css-editor/css-editor").then((module) => ({
+    default: module.CssEditor,
+  })),
+);
 
 const REINJECT_MESSAGE: ReinjectMessage = { type: "STYLESHIFT_REINJECT" };
 
@@ -91,10 +100,10 @@ export function App() {
   const [fontFamily, setFontFamily] = useState(DEFAULT_SETTINGS.fontFamily);
   const [fontStack, setFontStack] = useState<string[]>([]);
   const [fontDraft, setFontDraft] = useState("");
-  const [monoFontFamily, setMonoFontFamily] = useState(
-    DEFAULT_SETTINGS.monoFontFamily,
-  );
-  const [monoFontDraft, setMonoFontDraft] = useState("");
+  // The raw family name ("Fira Code"), never the serialized CSS value
+  // (`"Fira Code"` with quotes). Serialization happens only at the storage
+  // boundary in persistMonoFont, so nothing renders stray quote marks.
+  const [monoFont, setMonoFont] = useState(DEFAULT_SETTINGS.monoFontFamily);
   const [fontEnabled, setFontEnabled] = useState(DEFAULT_SETTINGS.fontEnabled);
   const [globalEnabled, setGlobalEnabled] = useState(true);
   const [fontComboboxOpen, setFontComboboxOpen] = useState(false);
@@ -106,9 +115,7 @@ export function App() {
   const [failedPresetIcons, setFailedPresetIcons] = useState<
     Record<string, boolean>
   >({});
-  const [importNonce, setImportNonce] = useState(0);
-  const [apiKey, setApiKey] = useState("");
-  const [justSaved, setJustSaved] = useState(false);
+  const [cssEnabled, setCssEnabled] = useState(true);
   const [customCSS, setCustomCSS] = useState(DEFAULT_SETTINGS.customCSS);
   const [savedCSS, setSavedCSS] = useState(DEFAULT_SETTINGS.customCSS);
   const [isSaving, setIsSaving] = useState(false);
@@ -131,6 +138,22 @@ export function App() {
       return column;
     });
   }, []);
+
+  const monoFontOptions = useMemo(
+    () => [
+      { heading: t("popup.bundledFonts"), fonts: BUILTIN_MONO_FONT_NAMES },
+      {
+        heading: t("popup.uploadedFonts"),
+        fonts: uploadedFontNames.filter(
+          (font) =>
+            !BUILTIN_MONO_FONT_NAMES.some(
+              (builtin) => builtin.toLowerCase() === font.toLowerCase(),
+            ),
+        ),
+      },
+    ],
+    [t, uploadedFontNames],
+  );
 
   const canApply = useMemo(
     () => Boolean(hostname) && globalEnabled,
@@ -166,9 +189,7 @@ export function App() {
           globalMonoFontStack.length > 0
             ? globalMonoFontStack
             : parseFontStack(settings.monoFontFamily);
-        const hydratedMonoFontFamily = serializeFontStack(
-          hydratedMonoFontStack,
-        );
+        const hydratedMonoFont = hydratedMonoFontStack[0] ?? "";
         const presetEntries = await Promise.all(
           POPULAR_SITE_PRESETS.map(
             async (preset) =>
@@ -187,11 +208,12 @@ export function App() {
         setPageName(getMainDomain(host));
         setFontStack(hydratedFontStack);
         setFontFamily(hydratedFontFamily);
-        setMonoFontFamily(hydratedMonoFontFamily);
+        setMonoFont(hydratedMonoFont);
         setFontEnabled(settings.fontEnabled);
         setGlobalEnabled(enabled);
         setCustomFonts(fonts);
         setPresetStates(Object.fromEntries(presetEntries));
+        setCssEnabled(settings.cssEnabled !== false);
         setCustomCSS(settings.customCSS);
         setSavedCSS(settings.customCSS);
       } catch (error) {
@@ -200,8 +222,9 @@ export function App() {
     }
 
     loadSettings();
-    readGoogleApiKey().then(setApiKey);
-    readAutoEnableAllSites().then(setAutoEnableAllSites);
+    // chrome.storage is unavailable on non-injectable pages; without a catch
+    // this surfaces as an unhandled rejection in the console.
+    readAutoEnableAllSites().then(setAutoEnableAllSites).catch(console.error);
 
     return () => {
       mounted = false;
@@ -242,7 +265,7 @@ export function App() {
       await updateHostSettings(hostname, {
         ...hostSettings,
         fontFamily: nextFontFamily,
-        monoFontFamily,
+        monoFontFamily: serializeFontStack(monoFont ? [monoFont] : []),
         fontEnabled,
       });
     }
@@ -273,36 +296,35 @@ export function App() {
   }
 
   async function persistMonoFont(nextFont: string) {
-    const nextFontFamily = serializeFontStack(nextFont ? [nextFont] : []);
+    const nextStack = nextFont ? [nextFont] : [];
 
-    setMonoFontFamily(nextFontFamily);
-    await updateGlobalMonoFontStack(nextFont ? [nextFont] : []);
+    setMonoFont(nextFont);
+    await updateGlobalMonoFontStack(nextStack);
 
     if (hostname) {
       const hostSettings = await readHostSettings(hostname);
       await updateHostSettings(hostname, {
         ...hostSettings,
         fontFamily,
-        monoFontFamily: nextFontFamily,
+        monoFontFamily: serializeFontStack(nextStack),
         fontEnabled,
       });
     }
   }
 
-  async function chooseMonoFont(fontName = monoFontDraft) {
+  async function chooseMonoFont(fontName: string) {
     const nextFont = fontName.trim().replace(/,/g, "");
 
     if (!nextFont) {
       return;
     }
 
-    setMonoFontDraft("");
     setMonoFontComboboxOpen(false);
     await persistMonoFont(nextFont);
   }
 
   async function clearMonoFont() {
-    setMonoFontDraft("");
+    setMonoFontComboboxOpen(false);
     await persistMonoFont("");
   }
 
@@ -319,11 +341,12 @@ export function App() {
       }));
     }
 
+    const hostSettings = await readHostSettings(hostname);
     await saveAndInject({
+      ...hostSettings,
       fontFamily,
-      monoFontFamily,
+      monoFontFamily: serializeFontStack(monoFont ? [monoFont] : []),
       fontEnabled: checked,
-      customCSS: (await readHostSettings(hostname)).customCSS,
     });
   }
 
@@ -335,7 +358,7 @@ export function App() {
     await updateHostSettings(host, {
       ...settings,
       fontFamily,
-      monoFontFamily,
+      monoFontFamily: serializeFontStack(monoFont ? [monoFont] : []),
       fontEnabled: next,
     });
 
@@ -343,10 +366,15 @@ export function App() {
 
     if (hostMatchesPreset(hostname, host)) {
       setFontEnabled(next);
+      // The active tab's hostname is usually a *different* storage key from
+      // the preset's (e.g. "www.github.com" vs "github.com"), so its settings
+      // have to be read separately. Spreading the preset's settings here would
+      // overwrite the current host's own custom CSS with the preset's.
+      const currentSettings = await readHostSettings(hostname);
       await updateHostSettings(hostname, {
-        ...settings,
+        ...currentSettings,
         fontFamily,
-        monoFontFamily,
+        monoFontFamily: serializeFontStack(monoFont ? [monoFont] : []),
         fontEnabled: next,
       });
 
@@ -359,12 +387,6 @@ export function App() {
     }
   }
 
-  async function handleSaveKey() {
-    await saveGoogleApiKey(apiKey);
-    setJustSaved(true);
-    window.setTimeout(() => setJustSaved(false), 2000);
-  }
-
   async function handleAutoEnableToggle(checked: boolean) {
     setAutoEnableAllSites(checked);
     await updateAutoEnableAllSites(checked);
@@ -373,6 +395,17 @@ export function App() {
   async function reloadCustomFonts() {
     const fonts = await readCustomFonts();
     setCustomFonts(fonts);
+  }
+
+  async function handleCssEnabledToggle(checked: boolean) {
+    setCssEnabled(checked);
+
+    if (!hostname) {
+      return;
+    }
+
+    const settings = await readHostSettings(hostname);
+    await saveAndInject({ ...settings, cssEnabled: checked });
   }
 
   async function handleSaveCSS() {
@@ -429,24 +462,6 @@ export function App() {
     } catch (error) {
       console.error("Error removing CSS:", error);
     }
-  }
-
-  function handleEditorKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key !== "Tab") {
-      return;
-    }
-
-    event.preventDefault();
-    const target = event.currentTarget;
-    const start = target.selectionStart;
-    const end = target.selectionEnd;
-    const nextCSS = `${customCSS.slice(0, start)}  ${customCSS.slice(end)}`;
-
-    setCustomCSS(nextCSS);
-    window.requestAnimationFrame(() => {
-      target.selectionStart = start + 2;
-      target.selectionEnd = start + 2;
-    });
   }
 
   const hasChanges = customCSS !== savedCSS;
@@ -535,6 +550,10 @@ export function App() {
                                     variant="secondary"
                                     className="min-h-7 min-w-0 max-w-[180px] gap-1 pr-1 transition-colors group-hover:brightness-[.97]"
                                   >
+                                    <FontStatusDot
+                                      name={font}
+                                      uploadedNames={uploadedFontNames}
+                                    />
                                     <span className="min-w-0 truncate">
                                       {font}
                                     </span>
@@ -609,7 +628,7 @@ export function App() {
                                   ))}
                                 </CommandGroup>
                               ) : null}
-                              {BUILTIN_FONT_NAMES.filter(
+                              {BUILTIN_SANS_FONT_NAMES.filter(
                                 (font) =>
                                   !fontStack.some(
                                     (saved) =>
@@ -618,7 +637,7 @@ export function App() {
                                   ),
                               ).length > 0 ? (
                                 <CommandGroup heading={t("popup.bundledFonts")}>
-                                  {BUILTIN_FONT_NAMES.filter(
+                                  {BUILTIN_SANS_FONT_NAMES.filter(
                                     (font) =>
                                       !fontStack.some(
                                         (saved) =>
@@ -634,6 +653,10 @@ export function App() {
                                       <span className="flex-1 truncate">
                                         {font}
                                       </span>
+                                      <FontStatusDot
+                                        name={font}
+                                        uploadedNames={uploadedFontNames}
+                                      />
                                     </CommandItem>
                                   ))}
                                 </CommandGroup>
@@ -667,6 +690,10 @@ export function App() {
                                         <span className="flex-1 truncate">
                                           {font}
                                         </span>
+                                        <FontStatusDot
+                                          name={font}
+                                          uploadedNames={uploadedFontNames}
+                                        />
                                       </CommandItem>
                                     ))}
                                 </CommandGroup>
@@ -769,6 +796,10 @@ export function App() {
                       >
                         {t("popup.codeFont")}
                       </LabelWithHelp>
+                      {/* Single-select: exactly one code font applies at a
+                          time, so this shows the chosen name as plain text
+                          with a check beside it in the list - not the
+                          removable chips the multi-font text picker uses. */}
                       <Popover
                         open={monoFontComboboxOpen}
                         onOpenChange={setMonoFontComboboxOpen}
@@ -780,41 +811,31 @@ export function App() {
                             variant="outline"
                             role="combobox"
                             aria-expanded={monoFontComboboxOpen}
-                            className="group h-auto min-h-9 w-full items-center justify-between px-2 py-1"
+                            className="h-9 w-full items-center justify-between px-3 font-normal"
                             disabled={!canApply}
                           >
-                            <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5 self-center">
-                              {monoFontFamily ? (
-                                <Badge
-                                  variant="secondary"
-                                  className="min-h-7 max-w-[280px] gap-1 pr-1 transition-colors group-hover:brightness-[.97]"
+                            <span className="min-w-0 flex-1 truncate text-start text-sm">
+                              {monoFont ? (
+                                <span
+                                  style={{
+                                    fontFamily: `'${monoFont}', ui-monospace, monospace`,
+                                  }}
                                 >
-                                  <span className="truncate">
-                                    {monoFontFamily}
-                                  </span>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="icon"
-                                    className="h-4 w-4 rounded-sm hover:bg-foreground/10"
-                                    aria-label={t("popup.codeFont")}
-                                    onClick={(event) => {
-                                      event.preventDefault();
-                                      event.stopPropagation();
-                                      clearMonoFont();
-                                    }}
-                                    disabled={!canApply}
-                                  >
-                                    <X className="h-3 w-3" aria-hidden="true" />
-                                  </Button>
-                                </Badge>
+                                  {monoFont}
+                                </span>
                               ) : (
-                                <span className="px-1 text-sm font-normal text-muted-foreground">
+                                <span className="text-muted-foreground">
                                   {t("popup.pickCodeFont")}
                                 </span>
                               )}
                             </span>
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 self-center opacity-50" />
+                            {monoFont ? (
+                              <FontStatusDot
+                                name={monoFont}
+                                uploadedNames={uploadedFontNames}
+                              />
+                            ) : null}
+                            <ChevronsUpDown className="ms-2 h-4 w-4 shrink-0 opacity-50" />
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent
@@ -824,54 +845,68 @@ export function App() {
                           collisionPadding={8}
                           usePortal={false}
                         >
-                          <Command shouldFilter={false}>
+                          <Command>
                             <CommandInput
-                              placeholder={t("popup.addCodeFont")}
-                              value={monoFontDraft}
-                              onValueChange={setMonoFontDraft}
-                              onKeyDown={(event) => {
-                                if (event.key === "Enter") {
-                                  event.preventDefault();
-                                  chooseMonoFont();
-                                }
-                              }}
+                              placeholder={t("popup.searchCodeFont")}
                             />
-                            <CommandList className="max-h-[200px]">
+                            <CommandList className="max-h-[220px]">
                               <CommandEmpty>
-                                {t("popup.typeFontEnter")}
+                                {t("popup.noFontsFound")}
                               </CommandEmpty>
-                              {BUILTIN_FONT_NAMES.length > 0 ? (
-                                <CommandGroup heading={t("popup.bundledFonts")}>
-                                  {BUILTIN_FONT_NAMES.map((font) => (
-                                    <CommandItem
-                                      key={font}
-                                      value={font}
-                                      onSelect={() => chooseMonoFont(font)}
-                                    >
-                                      <span className="flex-1 truncate">
-                                        {font}
-                                      </span>
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              ) : null}
-                              {uploadedFontNames.length > 0 ? (
-                                <CommandGroup
-                                  heading={t("popup.uploadedFonts")}
+                              <CommandGroup>
+                                <CommandItem
+                                  value={t("popup.noCodeFont")}
+                                  onSelect={clearMonoFont}
                                 >
-                                  {uploadedFontNames.map((font) => (
-                                    <CommandItem
-                                      key={font}
-                                      value={font}
-                                      onSelect={() => chooseMonoFont(font)}
-                                    >
-                                      <span className="flex-1 truncate">
-                                        {font}
-                                      </span>
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              ) : null}
+                                  <Check
+                                    className={[
+                                      "me-2 h-4 w-4 shrink-0",
+                                      monoFont ? "opacity-0" : "opacity-100",
+                                    ].join(" ")}
+                                  />
+                                  <span className="flex-1 truncate text-muted-foreground">
+                                    {t("popup.noCodeFont")}
+                                  </span>
+                                </CommandItem>
+                              </CommandGroup>
+                              {monoFontOptions.map((group) =>
+                                group.fonts.length > 0 ? (
+                                  <CommandGroup
+                                    key={group.heading}
+                                    heading={group.heading}
+                                  >
+                                    {group.fonts.map((font) => (
+                                      <CommandItem
+                                        key={font}
+                                        value={font}
+                                        onSelect={() => chooseMonoFont(font)}
+                                      >
+                                        <Check
+                                          className={[
+                                            "me-2 h-4 w-4 shrink-0",
+                                            font.toLowerCase() ===
+                                            monoFont.toLowerCase()
+                                              ? "opacity-100"
+                                              : "opacity-0",
+                                          ].join(" ")}
+                                        />
+                                        <span
+                                          className="flex-1 truncate"
+                                          style={{
+                                            fontFamily: `'${font}', ui-monospace, monospace`,
+                                          }}
+                                        >
+                                          {font}
+                                        </span>
+                                        <FontStatusDot
+                                          name={font}
+                                          uploadedNames={uploadedFontNames}
+                                        />
+                                      </CommandItem>
+                                    ))}
+                                  </CommandGroup>
+                                ) : null,
+                              )}
                             </CommandList>
                           </Command>
                         </PopoverContent>
@@ -904,27 +939,7 @@ export function App() {
 
                   <Separator />
 
-                  <CustomFontManager
-                    key={importNonce}
-                    onFontsChanged={reloadCustomFonts}
-                  />
-
-                  <Separator />
-
-                  <div>
-                    <Label className="text-sm font-semibold">
-                      {t("fonts.googleTitle")}
-                    </Label>
-                    <div className="mt-2">
-                      <GoogleFontBrowser
-                        onImported={() => {
-                          setImportNonce((value) => value + 1);
-                          reloadCustomFonts();
-                        }}
-                        onOpenSettings={() => setActiveTab("settings")}
-                      />
-                    </div>
-                  </div>
+                  <CustomFontManager onFontsChanged={reloadCustomFonts} />
                 </section>
               )}
 
@@ -948,22 +963,41 @@ export function App() {
                     </div>
                   </div>
                   {hostname && (
-                    <p className="text-[10px] text-muted-foreground">
-                      {t("editor.editingFor")}{" "}
-                      <span className="font-mono font-semibold">
-                        {hostname}
-                      </span>
-                    </p>
+                    <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-[var(--fabric-linen)] px-2 py-1.5">
+                      <p className="min-w-0 text-[10px] text-muted-foreground">
+                        {t("editor.editingFor")}{" "}
+                        <span className="font-mono font-semibold">
+                          {hostname}
+                        </span>
+                      </p>
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <Label
+                          htmlFor="css-enabled"
+                          className="text-[10px] text-muted-foreground"
+                        >
+                          {t("editor.applyCss")}
+                        </Label>
+                        <Switch
+                          id="css-enabled"
+                          checked={cssEnabled}
+                          onCheckedChange={handleCssEnabledToggle}
+                          disabled={!canApply}
+                        />
+                      </div>
+                    </div>
                   )}
-                  <textarea
-                    value={customCSS}
-                    onChange={(e) => setCustomCSS(e.target.value)}
-                    onKeyDown={handleEditorKeyDown}
-                    spellCheck={false}
-                    placeholder={`/* Custom CSS */\nbody {\n  background: #f0f0f0;\n}`}
-                    className="min-h-[160px] max-h-[40vh] w-full resize-none rounded-lg border border-border bg-card px-3 py-2 font-mono text-xs leading-5 text-foreground shadow-fabric outline-none placeholder:text-muted-foreground focus:ring-1 focus:ring-[var(--fabric-stitch)]"
-                    disabled={!canApply}
-                  />
+                  <Suspense
+                    fallback={
+                      <div className="min-h-[160px] w-full rounded-lg border border-border bg-card shadow-fabric" />
+                    }
+                  >
+                    <CssEditor
+                      value={customCSS}
+                      onChange={setCustomCSS}
+                      readOnly={!canApply}
+                      placeholder={`/* Custom CSS */\nbody {\n  background: #f0f0f0;\n}`}
+                    />
+                  </Suspense>
 
                   <div className="flex flex-wrap gap-1.5">
                     <Button
@@ -1064,55 +1098,6 @@ export function App() {
                           {option.nativeName}
                         </Button>
                       ))}
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div>
-                    <Label className="text-sm font-semibold">
-                      {t("settings.apiKeyTitle")}
-                    </Label>
-                    <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-                      {t("settings.apiKeyHelp")}
-                    </p>
-                    <div className="mt-2 space-y-2">
-                      <div className="flex gap-2">
-                        <Input
-                          type="password"
-                          autoComplete="off"
-                          spellCheck={false}
-                          value={apiKey}
-                          onChange={(event) => setApiKey(event.target.value)}
-                          placeholder={t("settings.apiKeyPlaceholder")}
-                          className="font-mono text-xs"
-                        />
-                        <Button
-                          type="button"
-                          variant="olive"
-                          size="sm"
-                          onClick={handleSaveKey}
-                          className="gap-1.5 shrink-0"
-                        >
-                          {justSaved ? (
-                            <>
-                              <Check className="h-3.5 w-3.5" />
-                              {t("settings.saved")}
-                            </>
-                          ) : (
-                            t("common.save")
-                          )}
-                        </Button>
-                      </div>
-                      <a
-                        href="https://console.cloud.google.com/apis/credentials"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs text-[var(--fabric-blue-thread)] underline-offset-4 hover:underline"
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                        {t("settings.getKey")}
-                      </a>
                     </div>
                   </div>
                 </section>

@@ -2,10 +2,18 @@
 // the page-injection path. Keep this module free of any `chrome.*` access so it
 // can run in the page context and be unit-tested without an extension host.
 
+import { DEFAULT_MONO_FONT } from "./builtin-fonts";
+
 export type StyleShiftSettings = {
   fontFamily: string;
   monoFontFamily: string;
   fontEnabled: boolean;
+  /**
+   * Whether the saved custom CSS is applied to this host. Absent in settings
+   * written before this existed, which read as `true` so upgrading does not
+   * silently switch off stylesheets people already rely on.
+   */
+  cssEnabled: boolean;
   customCSS: string;
 };
 
@@ -122,8 +130,9 @@ export const POPULAR_SITE_PRESETS: SitePreset[] = [
 
 export const DEFAULT_SETTINGS: StyleShiftSettings = {
   fontFamily: "",
-  monoFontFamily: "MonoLisa",
+  monoFontFamily: DEFAULT_MONO_FONT,
   fontEnabled: false,
+  cssEnabled: true,
   customCSS: "",
 };
 
@@ -353,7 +362,11 @@ export function fontStyleText(
   return monoRule ? `${mainRule}\n${monoRule}` : mainRule;
 }
 
-export function ensureStyle(id: string, cssText: string): void {
+export function ensureStyle(
+  id: string,
+  cssText: string,
+  relocateToHead = false,
+): void {
   const existing = document.getElementById(id);
 
   if (!cssText.trim()) {
@@ -373,6 +386,24 @@ export function ensureStyle(id: string, cssText: string): void {
     if (existing.textContent !== cssText) {
       existing.textContent = cssText;
     }
+
+    // The content script runs at document_start, so the first injection can
+    // happen before <head> exists and lands on <html> instead. That is early
+    // enough to prevent a flash of the page's own font, but it also places the
+    // rules *before* the page's stylesheets, where they would lose every
+    // specificity tie they currently win. Once <head> exists, move the element
+    // there so it ends up last, exactly where document_end used to put it.
+    //
+    // Only relocate rule sheets: moving a sheet re-inserts it, which resets
+    // any @font-face loads it declares (see the note above), and the font
+    // sheets do not need the position because their rules are !important.
+    if (
+      relocateToHead &&
+      document.head &&
+      existing.parentNode !== document.head
+    ) {
+      document.head.append(existing);
+    }
     return;
   }
 
@@ -387,7 +418,14 @@ export function applySettings(
   customFontNames: string[] = [],
 ): void {
   ensureStyle(FONT_STYLE_ID, fontStyleText(settings, customFontNames));
-  ensureStyle(CSS_STYLE_ID, settings.customCSS);
+  // `cssEnabled !== false` rather than a truthiness test: settings stored
+  // before the per-host CSS toggle existed have no such key, and those must
+  // keep applying their CSS.
+  ensureStyle(
+    CSS_STYLE_ID,
+    settings.cssEnabled !== false ? settings.customCSS : "",
+    true,
+  );
 }
 
 export function removeInjectedStyles(): void {
@@ -408,14 +446,33 @@ function escapeCssString(value: string): string {
   return value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
 }
 
+// A file extension is not a CSS format hint: `format('ttf')` and
+// `format('otf')` are invalid, and a browser drops the entire @font-face rule
+// when it cannot parse the hint - so uploaded .ttf/.otf fonts silently never
+// applied. Map each accepted extension to its CSS keyword and MIME type.
+const FONT_FORMATS: Record<string, { format: string; mimeType: string }> = {
+  woff2: { format: "woff2", mimeType: "font/woff2" },
+  woff: { format: "woff", mimeType: "font/woff" },
+  ttf: { format: "truetype", mimeType: "font/ttf" },
+  otf: { format: "opentype", mimeType: "font/otf" },
+};
+
+export function fontFormatHint(format: string): {
+  format: string;
+  mimeType: string;
+} {
+  return FONT_FORMATS[format.trim().toLowerCase()] ?? FONT_FORMATS.woff2;
+}
+
 export function generateCustomFontFace(font: CustomFont): string {
-  const fontFormat = font.format === "woff2" ? "woff2" : font.format || "woff2";
+  const { format, mimeType } = fontFormatHint(font.format);
   // base64 data is restricted to [A-Za-z0-9+/=]; strip anything else so a
   // crafted payload cannot break out of the url() value.
   const safeData = font.data.replace(/[^A-Za-z0-9+/=]/g, "");
   return `@font-face {
   font-family: '${escapeCssString(font.name)}';
-  src: url('data:application/${fontFormat};base64,${safeData}') format('${fontFormat}');
+  font-display: swap;
+  src: url('data:${mimeType};base64,${safeData}') format('${format}');
 }`;
 }
 

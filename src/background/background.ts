@@ -3,6 +3,18 @@ import type { ReinjectMessage } from "@/shared/messages";
 
 const REINJECT_MESSAGE: ReinjectMessage = { type: "STYLESHIFT_REINJECT" };
 
+// Storage keys written by features that no longer exist. They are removed on
+// install/update so an upgrade does not leave orphaned data behind - notably
+// the Google Fonts API key, which users of older versions may have entered
+// before the Google Fonts integration was removed.
+const RETIRED_STORAGE_KEYS = ["__styleshift_google_api_key__"];
+
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.storage.local.remove(RETIRED_STORAGE_KEYS).catch(() => {
+    // Nothing to clean up, or storage is unavailable - not worth surfacing.
+  });
+});
+
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   // Restricted pages (chrome://, the extension's own pages, the Web Store,
   // etc.) can't be scripted - skip them instead of letting the rejection

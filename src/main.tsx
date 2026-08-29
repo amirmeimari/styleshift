@@ -4,6 +4,13 @@ import { App } from "@/popup/App";
 import "@/index.css";
 import { I18nProvider } from "@/shared/i18n/use-i18n";
 
+// Dev server only: stub the chrome.* APIs so the popup is interactive outside
+// an extension host. Stripped from the production bundle.
+if (import.meta.env.DEV) {
+  const { installChromeMock } = await import("@/dev/chrome-mock");
+  installChromeMock();
+}
+
 document.documentElement.classList.add("styleshift-popup-page");
 document.body.classList.add("styleshift-popup-page");
 

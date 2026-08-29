@@ -60,8 +60,18 @@ export function formatCSS(css: string): string {
       continue;
     }
 
-    if (parenDepth === 0 && (char === "{" || char === "}" || char === ";")) {
+    if (parenDepth === 0 && (char === "{" || char === ";")) {
       normalized += `${char}\n`;
+      continue;
+    }
+
+    // A closing brace also needs a break *before* it, otherwise a block whose
+    // last declaration omits its (optional) semicolon leaves the brace glued to
+    // that declaration - `a{b:c}` would format as `a{\n  b:c}`, and the
+    // re-indent pass below would never see a line starting with `}` to
+    // dedent on.
+    if (parenDepth === 0 && char === "}") {
+      normalized += `\n}\n`;
       continue;
     }
 

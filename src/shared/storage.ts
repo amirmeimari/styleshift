@@ -1,5 +1,6 @@
 // Global and per-host settings persisted in chrome.storage.local.
 
+import { DEFAULT_MONO_FONT } from "./builtin-fonts";
 import {
   AUTO_ENABLE_ALL_SITES_KEY,
   DEFAULT_SETTINGS,
@@ -40,7 +41,7 @@ export async function readGlobalMonoFontStack(): Promise<string[]> {
   const stored = (await chrome.storage.local.get(
     GLOBAL_MONO_FONT_STACK_KEY,
   )) as Record<string, string[] | undefined>;
-  return stored[GLOBAL_MONO_FONT_STACK_KEY] ?? ["MonoLisa"];
+  return stored[GLOBAL_MONO_FONT_STACK_KEY] ?? [DEFAULT_MONO_FONT];
 }
 
 export async function updateGlobalMonoFontStack(

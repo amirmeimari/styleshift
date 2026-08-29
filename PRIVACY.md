@@ -1,6 +1,6 @@
 # StyleShift Privacy Policy
 
-_Last updated: 2026-06-30_
+_Last updated: 2026-08-29_
 
 StyleShift is a browser extension that injects local fonts and custom CSS into
 web pages. This policy explains what data the extension handles.
@@ -16,20 +16,21 @@ The extension stores:
 - **Your per-site and global preferences** — which font stacks are active,
   whether styling is enabled, and any custom CSS you write. Hostnames are stored
   only as the key for your own settings; they are never transmitted anywhere.
-- **Fonts you upload or import** — stored as font data on your device so they can
-  be re-applied on future visits.
-- **An optional Google Fonts API key** — only if you choose to enter one in
-  Settings, stored locally and used solely to talk to Google's Fonts API.
+- **Fonts you upload** — stored as font data on your device so they can be
+  re-applied on future visits. Uploaded fonts never leave your device.
 
 ## Network requests
 
-StyleShift makes network requests **only when you explicitly import a Google
-Font**:
+StyleShift does not fetch fonts, stylesheets, or configuration from any remote
+server. Every font it can apply is either bundled with the extension or one you
+uploaded yourself, and both are injected from local data — styling a page never
+requires a network request.
 
-- It contacts the Google Fonts API (`googleapis.com`) using the API key you
-  provided to list and download the font you selected.
-- The downloaded font is then stored locally and injected like any other local
-  font. No styling at page-render time requires a network request.
+The one exception is cosmetic: the site shortcut grid in the popup loads its
+brand icons from the public CDN `cdn.jsdelivr.net`. This request contains no
+information about you, your settings, or the pages you visit — it is a plain
+request for a static icon file, and it happens only while the popup is open. If
+an icon fails to load, StyleShift falls back to a text label.
 
 StyleShift does **not**:
 

@@ -14,17 +14,18 @@
 
 </div>
 
-**StyleShift** is a Chrome extension that lets you customize fonts and CSS on any website. Pick a bundled font, upload your own, or import from Google Fonts — apply it globally or per site, and it sticks around on every visit.
+**StyleShift** is a Chrome extension that lets you customize fonts and CSS on any website. Pick a bundled font or upload your own — apply it globally or per site, and it sticks around on every visit. No font is ever fetched from a remote host.
 
 ## Features
 
-- **Font injection** 🔤 — bundled fonts, custom uploads, or Google Fonts, applied per site or globally.
+- **Font injection** 🔤 — bundled fonts or your own uploads, applied per site or globally, with an availability indicator on every font.
 - **One-click site shortcuts** ⚡ — pre-activated toggles for popular sites, ready to enable in one click.
-- **Code font** 🖋️ — set a separate monospace font for code blocks.
-- **Custom CSS editor** 🎨 — write, format, and apply raw CSS per site, with save/remove/reset/copy actions.
+- **Code font** 🖋️ — pick one monospace font for code blocks; JetBrains Mono ships bundled.
+- **Custom CSS editor** 🎨 — CodeMirror-powered editor with CSS syntax highlighting, autocomplete, bracket matching, and inline error marks; format, save, remove, reset, and copy per site, with a per-site apply toggle.
 - **Persistent, per-hostname settings** 💾 — everything is stored in `chrome.storage.local` and re-applied automatically on page load/navigation.
 - **Global toggle** — enable or disable StyleShift for the current site straight from the popup header.
-- **Localized UI** 🌍 — popup is translated (English, Spanish, Arabic, Chinese, Persian, and more — see `src/shared/i18n`).
+- **Localized UI** 🌍 — popup is translated (English, Spanish, Arabic, Chinese, Persian — see `src/shared/i18n`).
+- **Fully offline** 🔒 — all fonts are bundled or user-supplied; the extension makes no font or API requests at any point.
 
 ## Install
 
@@ -77,8 +78,8 @@ npm run lint     # ESLint
 npm run format   # Prettier
 ```
 
-See [PRIVACY.md](PRIVACY.md) for the privacy policy (no data leaves your device
-except optional Google Fonts imports using your own API key).
+See [PRIVACY.md](PRIVACY.md) for the privacy policy — no data leaves your
+device.
 
 ## Storage Schema
 
@@ -88,7 +89,9 @@ Settings are stored in `chrome.storage.local`, keyed by hostname:
 {
   "example.com": {
     "fontFamily": "'Roboto', sans-serif",
+    "monoFontFamily": "'JetBrains Mono'",
     "fontEnabled": true,
+    "cssEnabled": true,
     "customCSS": "body { background: #000; }"
   }
 }
@@ -105,3 +108,18 @@ Issues and pull requests are welcome — bug fixes, new pre-activated sites, tra
 ## License
 
 Distributed under the MIT License. See [LICENSE](LICENSE) for more information.
+
+### Bundled fonts
+
+The fonts in `public/fonts/library` and `public/fonts/ui` are redistributed
+under their own licenses, not StyleShift's:
+
+| Font | License |
+| --- | --- |
+| JetBrains Mono | SIL OFL 1.1 — [`JetBrainsMono-OFL.txt`](public/fonts/library/JetBrainsMono-OFL.txt) |
+| Inter, Lato, Open Sans, Poppins | SIL OFL 1.1 |
+| Roboto | Apache License 2.0 |
+| Nunito Sans, Vazirmatn | SIL OFL 1.1 |
+
+Only JetBrains Mono currently ships its license text alongside the font files;
+the others should get the same treatment before the next store release.

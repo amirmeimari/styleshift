@@ -63,7 +63,16 @@ export function CustomFontManager({ onFontsChanged }: CustomFontManagerProps) {
         });
         const base64 = result.split(",")[1] || result;
         const fontName = file.name.replace(/\.[^.]+$/, "");
-        const fontId = `custom-font-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+        // Re-uploading a font under a name that already exists should replace
+        // it. Minting a fresh timestamp id every time left two @font-face
+        // blocks declaring the same family, with the later one silently
+        // winning and the earlier one wasting storage forever.
+        const existing = Object.values(await readCustomFonts()).find(
+          (font) => font.name.toLowerCase() === fontName.toLowerCase(),
+        );
+        const fontId =
+          existing?.id ??
+          `custom-font-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 
         const customFont: CustomFont = {
           id: fontId,

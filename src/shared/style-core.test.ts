@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  applySettings,
   availableFontStack,
+  CSS_STYLE_ID,
   ensureStyle,
+  FONT_STYLE_ID,
   fontStyleText,
   formatFontFamily,
   generateCustomFontFace,
@@ -126,7 +129,51 @@ describe("generateCustomFontFace", () => {
       format: "woff2",
     });
     expect(css).toContain("font-family: 'MyFont'");
-    expect(css).toContain("data:application/woff2;base64,AAAA");
+    expect(css).toContain("data:font/woff2;base64,AAAA");
+    expect(css).toContain("format('woff2')");
+  });
+
+  it("maps file extensions to valid CSS format hints", () => {
+    // `format('ttf')`/`format('otf')` are not valid CSS - a browser drops the
+    // whole rule, so uploaded TrueType/OpenType fonts never applied.
+    const ttf = generateCustomFontFace({
+      id: "1",
+      name: "MyFont",
+      data: "AAAA",
+      mimeType: "",
+      format: "ttf",
+    });
+    expect(ttf).toContain("format('truetype')");
+    expect(ttf).toContain("data:font/ttf;base64,AAAA");
+
+    const otf = generateCustomFontFace({
+      id: "2",
+      name: "MyFont",
+      data: "AAAA",
+      mimeType: "",
+      format: "OTF",
+    });
+    expect(otf).toContain("format('opentype')");
+    expect(otf).toContain("data:font/otf;base64,AAAA");
+
+    const woff = generateCustomFontFace({
+      id: "3",
+      name: "MyFont",
+      data: "AAAA",
+      mimeType: "",
+      format: "woff",
+    });
+    expect(woff).toContain("format('woff')");
+  });
+
+  it("falls back to woff2 for an unrecognised format", () => {
+    const css = generateCustomFontFace({
+      id: "1",
+      name: "MyFont",
+      data: "AAAA",
+      mimeType: "",
+      format: "bogus",
+    });
     expect(css).toContain("format('woff2')");
   });
 });
@@ -198,6 +245,7 @@ describe("font availability (mocked document.fonts)", () => {
       fontFamily: "Inter",
       monoFontFamily: "",
       fontEnabled: false,
+      cssEnabled: true,
       customCSS: "",
     };
     expect(fontStyleText(settings)).toBe("");
@@ -209,6 +257,7 @@ describe("font availability (mocked document.fonts)", () => {
       fontFamily: "Inter, Missing",
       monoFontFamily: "",
       fontEnabled: true,
+      cssEnabled: true,
       customCSS: "",
     };
     const css = fontStyleText(settings);
@@ -222,9 +271,111 @@ describe("font availability (mocked document.fonts)", () => {
       fontFamily: "Inter",
       monoFontFamily: "Fira Code",
       fontEnabled: true,
+      cssEnabled: true,
       customCSS: "",
     };
     const css = fontStyleText(settings);
     expect(css).toContain('font-family: "Fira Code" !important;');
+  });
+});
+
+describe("applySettings CSS gating", () => {
+  afterEach(() => {
+    document.getElementById(CSS_STYLE_ID)?.remove();
+  });
+
+  const base: StyleShiftSettings = {
+    fontFamily: "",
+    monoFontFamily: "",
+    fontEnabled: false,
+    cssEnabled: true,
+    customCSS: "body { color: red; }",
+  };
+
+  const injectedCss = () =>
+    document.getElementById(CSS_STYLE_ID)?.textContent ?? null;
+
+  it("injects custom CSS when enabled for the host", () => {
+    applySettings(base);
+    expect(injectedCss()).toBe("body { color: red; }");
+  });
+
+  it("withholds custom CSS when the host toggle is off", () => {
+    applySettings({ ...base, cssEnabled: false });
+    expect(injectedCss()).toBeNull();
+  });
+
+  it("keeps applying CSS for settings saved before the toggle existed", () => {
+    // Pre-toggle records have no `cssEnabled` key at all; treating that as
+    // "off" would silently disable stylesheets people already rely on.
+    const legacy = { ...base } as Partial<StyleShiftSettings>;
+    delete legacy.cssEnabled;
+
+    applySettings(legacy as StyleShiftSettings);
+    expect(injectedCss()).toBe("body { color: red; }");
+  });
+
+  it("removes previously injected CSS when the toggle is turned off", () => {
+    applySettings(base);
+    expect(injectedCss()).toBe("body { color: red; }");
+
+    applySettings({ ...base, cssEnabled: false });
+    expect(injectedCss()).toBeNull();
+  });
+});
+
+describe("ensureStyle head relocation", () => {
+  afterEach(() => {
+    document.getElementById(CSS_STYLE_ID)?.remove();
+    document.getElementById(FONT_STYLE_ID)?.remove();
+  });
+
+  it("falls back to documentElement when head is missing", () => {
+    const head = document.head;
+    head.remove();
+
+    ensureStyle(CSS_STYLE_ID, "body { color: red; }", true);
+    const style = document.getElementById(CSS_STYLE_ID);
+    expect(style?.parentNode).toBe(document.documentElement);
+
+    document.documentElement.prepend(head);
+  });
+
+  it("moves a rule sheet into head once head exists", () => {
+    // Mirrors document_start: the sheet is created before <head> is parsed,
+    // so it would otherwise sit ahead of the page's own stylesheets and lose
+    // every specificity tie.
+    const head = document.head;
+    head.remove();
+    ensureStyle(CSS_STYLE_ID, "body { color: red; }", true);
+    document.documentElement.prepend(head);
+
+    ensureStyle(CSS_STYLE_ID, "body { color: red; }", true);
+    expect(document.getElementById(CSS_STYLE_ID)?.parentNode).toBe(
+      document.head,
+    );
+  });
+
+  it("leaves font sheets where they were injected", () => {
+    // Relocating re-inserts the sheet, which restarts any @font-face load it
+    // declares; font rules are !important so position does not matter.
+    const head = document.head;
+    head.remove();
+    ensureStyle(FONT_STYLE_ID, "body { font-family: X !important; }");
+    document.documentElement.prepend(head);
+
+    ensureStyle(FONT_STYLE_ID, "body { font-family: X !important; }");
+    expect(document.getElementById(FONT_STYLE_ID)?.parentNode).toBe(
+      document.documentElement,
+    );
+  });
+
+  it("keeps the sheet in head across later updates", () => {
+    ensureStyle(CSS_STYLE_ID, "body { color: red; }", true);
+    ensureStyle(CSS_STYLE_ID, "body { color: blue; }", true);
+
+    const style = document.getElementById(CSS_STYLE_ID);
+    expect(style?.parentNode).toBe(document.head);
+    expect(style?.textContent).toBe("body { color: blue; }");
   });
 });

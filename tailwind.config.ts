@@ -6,8 +6,8 @@ const config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Karla", "system-ui", "sans-serif"],
-        display: ["'IM Fell English'", "serif"],
+        sans: ["Nunito Sans", "Vazirmatn", "system-ui", "sans-serif"],
+        display: ["Nunito Sans", "Vazirmatn", "system-ui", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
