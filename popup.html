@@ -5,7 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>StyleShift</title>
     <style>
-      * {
+      /* Excludes the CSS editor: it sets its own (JetBrains Mono) font in
+         css-editor-theme.ts, which this !important rule would otherwise
+         beat regardless of specificity. */
+      *:not(.cm-editor, .cm-editor *) {
         font-family: "Nunito Sans", "Vazirmatn", sans-serif !important;
       }
 

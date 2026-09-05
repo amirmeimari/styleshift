@@ -44,6 +44,24 @@
   src: url("/fonts/ui/vazirmatn-700.woff2") format("woff2");
 }
 
+/* Bundled code font, also offered to users as a mono choice for the pages
+   they style (see builtin-fonts.ts) - loaded here too so the CSS editor and
+   the mono font picker's own previews render in it. */
+@font-face {
+  font-family: "JetBrains Mono";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/library/jetbrains-mono-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/library/jetbrains-mono-700.woff2") format("woff2");
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;

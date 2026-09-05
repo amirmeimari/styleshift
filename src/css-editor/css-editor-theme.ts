@@ -39,7 +39,7 @@ export function cssEditorTheme(dark: boolean): Extension {
       },
       ".cm-scroller": {
         fontFamily:
-          "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+          "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
         lineHeight: "1.25rem",
         minHeight: "var(--styleshift-editor-min-height)",
         maxHeight: "40vh",
@@ -138,7 +138,7 @@ export function cssEditorTheme(dark: boolean): Extension {
       },
       ".cm-tooltip.cm-tooltip-autocomplete > ul": {
         fontFamily:
-          "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+          "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
         fontSize: "11px",
         maxHeight: "12em",
       },
