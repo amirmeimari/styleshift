@@ -28,6 +28,7 @@ await build({
     rollupOptions: {
       input: {
         popup: resolve(root, "popup.html"),
+        options: resolve(root, "options.html"),
       },
       output: {
         entryFileNames: "[name].js",

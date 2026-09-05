@@ -1,4 +1,9 @@
-import { isInjectableUrl } from "@/shared/style-core";
+import {
+  TYPOGRAPHY_KEY,
+  isInjectableUrl,
+  normalizeTypography,
+} from "@/shared/style-core";
+import { applyMinimumFontSize } from "@/shared/min-font-size";
 import type { ReinjectMessage } from "@/shared/messages";
 
 const REINJECT_MESSAGE: ReinjectMessage = { type: "STYLESHIFT_REINJECT" };
@@ -32,5 +37,21 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
       .catch(() => {
         // Tab may have closed or navigated away before injection ran - ignore.
       });
+  });
+});
+
+// Minimum font size is a browser-global Chrome preference (chrome.fontSettings),
+// not per-page CSS, so it is applied here rather than in content.ts - and only
+// needs the change path, since the preference itself persists across service
+// worker restarts.
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== "local" || !changes[TYPOGRAPHY_KEY]) {
+    return;
+  }
+
+  const typography = normalizeTypography(changes[TYPOGRAPHY_KEY].newValue);
+  applyMinimumFontSize(typography.minFontSize).catch(() => {
+    // Permission not granted, or chrome.fontSettings unavailable - the
+    // options page surfaces the permission state; nothing to do here.
   });
 });
