@@ -37,11 +37,6 @@ import {
   updateHostSettings,
   updateTypography,
 } from "@/shared/storage";
-import {
-  hasFontSettingsPermission,
-  requestFontSettingsPermission,
-  revokeFontSettingsPermission,
-} from "@/shared/min-font-size";
 
 const CssEditor = lazy(() =>
   import("@/css-editor/css-editor").then((module) => ({
@@ -79,17 +74,13 @@ async function loadSiteRows(): Promise<SiteRow[]> {
 }
 
 // Scoped originally to the one thing that needed a page that survives focus
-// loss (the chrome.permissions.request() gesture for "fontSettings"), this
-// page now also hosts the site manager and the full-tab CSS editor - both of
-// which need the same "doesn't close on focus loss" property: the OS file
-// picker for import, and editing CSS without the popup's 480px ceiling.
+// loss - the OS file picker for import - this page now also hosts the site
+// manager and the full-tab CSS editor, which needs the same property to edit
+// CSS without the popup's 480px ceiling.
 export function OptionsApp() {
   const { t, dir } = useI18n();
   const [typography, setTypography] =
     useState<TypographySettings>(DEFAULT_TYPOGRAPHY);
-  // null while the initial permission check is in flight.
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
-  const [requestDenied, setRequestDenied] = useState(false);
 
   const [sites, setSites] = useState<SiteRow[]>([]);
 
@@ -124,20 +115,17 @@ export function OptionsApp() {
     let mounted = true;
 
     async function load() {
-      const [storedTypography, granted, siteRows, storedGlobalCSS] =
-        await Promise.all([
-          readTypography(),
-          hasFontSettingsPermission(),
-          loadSiteRows(),
-          readGlobalCSS(),
-        ]);
+      const [storedTypography, siteRows, storedGlobalCSS] = await Promise.all([
+        readTypography(),
+        loadSiteRows(),
+        readGlobalCSS(),
+      ]);
 
       if (!mounted) {
         return;
       }
 
       setTypography(storedTypography);
-      setHasPermission(granted);
       setSites(siteRows);
       setGlobalCSS(storedGlobalCSS);
       setGlobalCSSDraft(storedGlobalCSS);
@@ -158,28 +146,12 @@ export function OptionsApp() {
     }
   }, []);
 
-  async function handleEnable() {
-    // Requires a user gesture, which is why this control lives here rather
-    // than in the popup - a popup click that opens the permission prompt
-    // loses focus and Chrome tears the popup down before the answer arrives.
-    const granted = await requestFontSettingsPermission();
-    setHasPermission(granted);
-    setRequestDenied(!granted);
-  }
-
   async function handleMinFontSizeChange(value: number) {
     const next = await updateTypography({ minFontSize: value });
     setTypography(next);
   }
 
   async function handleTurnOff() {
-    const next = await updateTypography({ minFontSize: null });
-    setTypography(next);
-  }
-
-  async function handleRevoke() {
-    await revokeFontSettingsPermission();
-    setHasPermission(false);
     const next = await updateTypography({ minFontSize: null });
     setTypography(next);
   }
@@ -337,77 +309,44 @@ export function OptionsApp() {
                 {t("options.minFontSizeHelp")}
               </p>
 
-              {hasPermission === false && (
-                <div className="space-y-2 pt-1">
-                  {requestDenied && (
-                    <p className="text-xs text-[var(--fabric-terracotta)]">
-                      {t("options.permissionDenied")}
-                    </p>
-                  )}
-                  <Button
-                    type="button"
-                    variant="olive"
-                    size="sm"
-                    className="h-7 text-xs"
-                    onClick={handleEnable}
+              <div className="space-y-2 pt-1">
+                <div className="flex items-center justify-between gap-2">
+                  <Label
+                    htmlFor="min-font-size"
+                    className="text-xs text-muted-foreground"
                   >
-                    {t("options.enablePermission")}
-                  </Button>
+                    {t("options.minFontSizeLabel")}
+                  </Label>
+                  <span className="text-[10px] tabular-nums text-muted-foreground">
+                    {typography.minFontSize ?? t("popup.typographyDefault")}
+                    {typography.minFontSize !== null ? "px" : ""}
+                  </span>
                 </div>
-              )}
-
-              {hasPermission === true && (
-                <div className="space-y-2 pt-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <Label
-                      htmlFor="min-font-size"
-                      className="text-xs text-muted-foreground"
-                    >
-                      {t("options.minFontSizeLabel")}
-                    </Label>
-                    <span className="text-[10px] tabular-nums text-muted-foreground">
-                      {typography.minFontSize ?? t("popup.typographyDefault")}
-                      {typography.minFontSize !== null ? "px" : ""}
-                    </span>
-                  </div>
-                  <input
-                    id="min-font-size"
-                    type="range"
-                    min={TYPOGRAPHY_RANGES.minFontSize.min}
-                    max={TYPOGRAPHY_RANGES.minFontSize.max}
-                    step={1}
-                    value={
-                      typography.minFontSize ??
-                      TYPOGRAPHY_RANGES.minFontSize.min
-                    }
-                    onChange={(event) =>
-                      handleMinFontSizeChange(Number(event.target.value))
-                    }
-                    className="w-full accent-[var(--fabric-denim)]"
-                  />
-                  <div className="flex flex-wrap gap-1.5 pt-1">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      size="sm"
-                      className="h-7 text-xs"
-                      disabled={typography.minFontSize === null}
-                      onClick={handleTurnOff}
-                    >
-                      {t("options.turnOff")}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      className="h-7 text-xs"
-                      onClick={handleRevoke}
-                    >
-                      {t("options.revokePermission")}
-                    </Button>
-                  </div>
-                </div>
-              )}
+                <input
+                  id="min-font-size"
+                  type="range"
+                  min={TYPOGRAPHY_RANGES.minFontSize.min}
+                  max={TYPOGRAPHY_RANGES.minFontSize.max}
+                  step={1}
+                  value={
+                    typography.minFontSize ?? TYPOGRAPHY_RANGES.minFontSize.min
+                  }
+                  onChange={(event) =>
+                    handleMinFontSizeChange(Number(event.target.value))
+                  }
+                  className="w-full accent-[var(--fabric-denim)]"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="h-7 text-xs"
+                  disabled={typography.minFontSize === null}
+                  onClick={handleTurnOff}
+                >
+                  {t("options.turnOff")}
+                </Button>
+              </div>
             </section>
 
             <Separator />

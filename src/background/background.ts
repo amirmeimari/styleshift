@@ -53,8 +53,8 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 
   const typography = normalizeTypography(changes[TYPOGRAPHY_KEY].newValue);
   applyMinimumFontSize(typography.minFontSize).catch(() => {
-    // Permission not granted, or chrome.fontSettings unavailable - the
-    // options page surfaces the permission state; nothing to do here.
+    // chrome.fontSettings unavailable (e.g. policy-restricted) - nothing to
+    // surface here; the pref just doesn't apply.
   });
 });
 

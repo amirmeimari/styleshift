@@ -46,7 +46,11 @@ export function cssEditorTheme(dark: boolean): Extension {
       },
       ".cm-content": {
         padding: "8px 0",
-        caretColor: "var(--fabric-denim)",
+        // The brighter -border sibling, not the base fill color: the caret
+        // has to read as an ink mark against --card, while --fabric-denim
+        // itself stays tuned for badge/button fills (see the note in
+        // src/index.css's .dark block).
+        caretColor: "var(--fabric-denim-border)",
         // CodeMirror's base theme gives this `min-height: 100%` so the
         // editable area fills the box. That percentage resolves against
         // .cm-scroller, whose own height is a percentage of an auto-height
@@ -98,7 +102,7 @@ export function cssEditorTheme(dark: boolean): Extension {
         color: "hsl(var(--muted-foreground))",
       },
       "&.cm-focused .cm-cursor": {
-        borderInlineStartColor: "var(--fabric-denim)",
+        borderInlineStartColor: "var(--fabric-denim-border)",
       },
       "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection":
         {
@@ -179,7 +183,8 @@ export const cssHighlightStyle = HighlightStyle.define([
   { tag: tags.comment, color: "hsl(var(--muted-foreground))" },
   {
     tag: [tags.propertyName, tags.definition(tags.propertyName)],
-    color: "var(--fabric-denim)",
+    // -border, not the base fill (see the caretColor comment above).
+    color: "var(--fabric-denim-border)",
   },
   { tag: [tags.tagName, tags.typeName], color: "var(--fabric-leather)" },
   { tag: tags.className, color: "var(--fabric-olive)" },

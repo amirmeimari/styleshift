@@ -336,11 +336,12 @@ export const PROSE_TARGET_SELECTOR = PROSE_ELEMENTS.map(
   (el) => `${el}${TARGET_EXCLUSIONS}`,
 ).join(", ");
 
-// Headings excluded: targeting them directly would flatten the page's
-// heading hierarchy to the body weight. Left untouched, the page's own
-// `h1..h6 { font-weight: bold }` keeps winning over the inherited value.
+// Headings and table headers excluded: targeting them directly would flatten
+// the page's own bold hierarchy to the body weight. Left untouched, the
+// page's own `h1..h6, th { font-weight: bold }` keeps winning over the
+// inherited value.
 export const PROSE_WEIGHT_TARGET_SELECTOR = PROSE_ELEMENTS.filter(
-  (el) => !/^h[1-6]$/.test(el),
+  (el) => !/^h[1-6]$/.test(el) && el !== "th",
 )
   .map((el) => `${el}${TARGET_EXCLUSIONS}`)
   .join(", ");
@@ -714,18 +715,31 @@ const FONT_FORMATS: Record<string, { format: string; mimeType: string }> = {
   otf: { format: "opentype", mimeType: "font/otf" },
 };
 
+// `in` and bracket access both fall through to Object.prototype - a format of
+// "constructor" or "toString" is `in FONT_FORMATS` and resolves to a function,
+// not undefined, so `?? FONT_FORMATS.woff2` never fires. hasOwnProperty avoids
+// the prototype chain entirely.
+function lookupFontFormat(
+  format: string,
+): { format: string; mimeType: string } | undefined {
+  const key = format.trim().toLowerCase();
+  return Object.prototype.hasOwnProperty.call(FONT_FORMATS, key)
+    ? FONT_FORMATS[key]
+    : undefined;
+}
+
 export function fontFormatHint(format: string): {
   format: string;
   mimeType: string;
 } {
-  return FONT_FORMATS[format.trim().toLowerCase()] ?? FONT_FORMATS.woff2;
+  return lookupFontFormat(format) ?? FONT_FORMATS.woff2;
 }
 
 // Whether `format` (a file extension, not the CSS format() keyword) is one
 // generateCustomFontFace knows how to embed. Used by import validation to
 // reject a font entry outright rather than silently falling back to woff2.
 export function isValidFontFormat(format: string): boolean {
-  return format.trim().toLowerCase() in FONT_FORMATS;
+  return lookupFontFormat(format) !== undefined;
 }
 
 export function generateCustomFontFace(font: CustomFont): string {

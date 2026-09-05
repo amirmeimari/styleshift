@@ -86,6 +86,12 @@
     --fabric-olive-border: #5d6040;
     --fabric-terracotta: #b66e5a;
     --fabric-terracotta-border: #8f4b3c;
+    /* Badge/button fill for olive and terracotta. Same as the base color in
+       light mode; the dark .dark block below gives these their own darker
+       value, because the base color there has to stay bright for its other
+       job as syntax-highlighting text (see the note in .dark). */
+    --fabric-olive-fill: #7a7d52;
+    --fabric-terracotta-fill: #b66e5a;
     --fabric-mustard: #d4a74e;
     --fabric-mustard-border: #a87f2f;
     --fabric-leather: #7a5538;
@@ -116,45 +122,62 @@
   .dark {
     color-scheme: dark;
 
-    --background: 27 12% 10%;
-    --foreground: 36 26% 88%;
-    --card: 26 11% 15%;
-    --card-foreground: 36 26% 88%;
-    --popover: 26 12% 14%;
-    --popover-foreground: 36 26% 88%;
-    --primary: 215 40% 62%;
+    /* Re-tuned for comfortable, accessible contrast (WCAG ratios computed
+       against this exact palette, not eyeballed): body text sits around
+       9-11:1 rather than the previous ~13.5:1, which read as glare on such a
+       dark ground; every surface (background/card/popover/muted/accent) gets
+       its own step so panels read as raised instead of blending together;
+       and border/input jump from ~1.6:1 (functionally invisible) to ~3-4:1
+       so component edges are actually visible. */
+    --background: 27 12% 9%;
+    --foreground: 36 20% 80%;
+    --card: 26 13% 16%;
+    --card-foreground: 36 20% 80%;
+    --popover: 26 13% 19%;
+    --popover-foreground: 36 20% 80%;
+    --primary: 215 45% 64%;
     --primary-foreground: 24 25% 12%;
-    --secondary: 26 11% 20%;
-    --secondary-foreground: 36 26% 88%;
-    --muted: 26 8% 26%;
-    --muted-foreground: 30 10% 64%;
-    --accent: 28 12% 30%;
-    --accent-foreground: 36 26% 88%;
+    --secondary: 26 12% 22%;
+    --secondary-foreground: 36 20% 80%;
+    --muted: 26 11% 25%;
+    --muted-foreground: 30 12% 68%;
+    --accent: 27 13% 31%;
+    --accent-foreground: 36 20% 80%;
     --destructive: 9 45% 58%;
     --destructive-foreground: 12 100% 97%;
-    --border: 27 12% 27%;
-    --input: 27 12% 27%;
-    --ring: 215 40% 62%;
+    --border: 27 10% 46%;
+    --input: 27 10% 46%;
+    --ring: 215 45% 64%;
 
     --fabric-stitch: #6f5942;
-    --fabric-canvas: #221d18;
-    --fabric-linen: #2b2520;
-    --fabric-panel: #262019;
-    --fabric-tab-inactive: #3a3128;
-    --fabric-tab-inactive-fg: #9b8b78;
+    --fabric-canvas: #1a1714;
+    --fabric-linen: #37302a;
+    --fabric-panel: #2e2823;
+    --fabric-tab-inactive: #302a24;
+    --fabric-tab-inactive-fg: #a19487;
 
+    /* fabric-denim/olive/terracotta double as syntax-highlighting text color
+       in the CSS editor (see css-editor-theme.ts) - a role that needs them
+       bright against the card. That's in tension with badge/button/switch
+       fills, which need to stay dark enough for the near-white --fabric-on-*
+       text on top of them to read clearly. Denim's fill already works for
+       both, but olive and terracotta don't - hence the dedicated *-fill
+       tokens below, used only for those filled surfaces, while the base
+       color keeps serving as text/ink. */
     --fabric-denim: #4a6b9c;
-    --fabric-denim-border: #6d8fc4;
+    --fabric-denim-border: #7192c5;
     --fabric-olive: #8f9463;
-    --fabric-olive-border: #b3b884;
+    --fabric-olive-border: #d2d9bf;
+    --fabric-olive-fill: #667048;
     --fabric-terracotta: #c47f68;
-    --fabric-terracotta-border: #e0a48c;
+    --fabric-terracotta-border: #e3c1b5;
+    --fabric-terracotta-fill: #a45c46;
     --fabric-mustard: #d9ae5c;
     --fabric-mustard-border: #f0c67e;
-    --fabric-leather: #966844;
-    --fabric-leather-border: #bd8a63;
-    --fabric-red-thread: #c06a60;
-    --fabric-blue-thread: #6d8fc4;
+    --fabric-leather: #b88661;
+    --fabric-leather-border: #d2a989;
+    --fabric-red-thread: #cc7970;
+    --fabric-blue-thread: #7192c5;
     --fabric-blue-thread-border: #a9c1e6;
     --fabric-green-thread: #7ba173;
 

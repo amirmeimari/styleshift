@@ -5,6 +5,7 @@
 import {
   buildBackup,
   isHostSettingsKey,
+  isValidHostSettingsKey,
   type StyleShiftBackup,
   type StyleShiftBackupGlobals,
 } from "./backup";
@@ -154,7 +155,7 @@ export async function applyBackup(
       unknown
     >;
     const ownedBefore = Object.keys(before).filter(
-      (key) => key.startsWith("__styleshift") || isHostSettingsKey(key),
+      (key) => key.startsWith("__styleshift") || isValidHostSettingsKey(key),
     );
 
     // Write first, remove second: a crash between the two steps leaves the

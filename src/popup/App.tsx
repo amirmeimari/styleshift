@@ -41,6 +41,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Label } from "@/components/ui/label";
+import { SegmentedControl } from "@/components/ui/segmented-control";
 import { LOCALES } from "@/shared/i18n/locales";
 import type { ThemePref } from "@/shared/theme";
 import { useTheme } from "@/shared/theme-provider";
@@ -166,6 +167,23 @@ export function App() {
   const { theme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<TabId>("fonts");
   const tabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
+  // One stable setter per tab, created once - TABS is a static module-level
+  // constant, so this never needs to change across renders. An inline
+  // `ref={(el) => ...}` in the JSX below would instead reallocate on every
+  // render of this always-mounted nav, including on every CSS-editor
+  // keystroke.
+  const tabRefSetters = useMemo(
+    () =>
+      Object.fromEntries(
+        TABS.map((tab) => [
+          tab.id,
+          (el: HTMLButtonElement | null) => {
+            tabRefs.current[tab.id] = el;
+          },
+        ]),
+      ) as Record<TabId, (el: HTMLButtonElement | null) => void>,
+    [],
+  );
   const [hostname, setHostname] = useState("");
   const [pageName, setPageName] = useState("this page");
   const [fontFamily, setFontFamily] = useState(DEFAULT_SETTINGS.fontFamily);
@@ -204,19 +222,18 @@ export function App() {
     [customFonts],
   );
   const presetColumns = useMemo(() => {
-    // Matches the grid-cols-9 layout below. Derived from the preset count
-    // rather than hardcoded so a 28th preset doesn't silently vanish off the
-    // end of a fixed 27-slot [3,3,...] split.
-    const perColumn = Math.ceil(
-      POPULAR_SITE_PRESETS.length / PRESET_COLUMN_COUNT,
+    // Matches the grid-cols-9 layout below. Round-robin (not a fixed-size
+    // slice per column) so every column stays populated regardless of the
+    // preset count - a slice-based split leaves trailing columns empty
+    // whenever the count isn't an exact multiple of PRESET_COLUMN_COUNT.
+    const columns: (typeof POPULAR_SITE_PRESETS)[number][][] = Array.from(
+      { length: PRESET_COLUMN_COUNT },
+      () => [],
     );
-
-    return Array.from({ length: PRESET_COLUMN_COUNT }, (_, columnIndex) =>
-      POPULAR_SITE_PRESETS.slice(
-        columnIndex * perColumn,
-        (columnIndex + 1) * perColumn,
-      ),
-    ).filter((column) => column.length > 0);
+    POPULAR_SITE_PRESETS.forEach((preset, index) => {
+      columns[index % PRESET_COLUMN_COUNT].push(preset);
+    });
+    return columns.filter((column) => column.length > 0);
   }, []);
 
   const monoFontOptions = useMemo(
@@ -322,12 +339,26 @@ export function App() {
     };
   }, []);
 
-  async function saveAndInject(nextSettings: StyleShiftSettings) {
+  // Merges `patch` onto hostname's own record and persists + reinjects the
+  // result. When hostname has no own record yet (it's inheriting from an
+  // ancestor, or has nothing), the base is DEFAULT_SETTINGS with only the
+  // resolved fontEnabled fallback carried over - never the ancestor's other
+  // fields. Spreading the ancestor's full resolved settings here (as this
+  // used to) would freeze a permanent copy of its customCSS/fontFamily onto
+  // the child the moment the user touched any unrelated switch, silently
+  // forking it off future changes to the parent - the same domain-boundary
+  // leak handlePresetToggle already guards against below.
+  async function saveAndInject(patch: Partial<StyleShiftSettings>) {
     if (!hostname) {
       return;
     }
 
-    await updateHostSettings(hostname, nextSettings);
+    const resolved = await resolveHostSettings(hostname);
+    const base =
+      resolved.sourceHost === hostname
+        ? resolved.settings
+        : { ...DEFAULT_SETTINGS, fontEnabled: resolved.settings.fontEnabled };
+    await updateHostSettings(hostname, { ...base, ...patch });
     // Writing here always materializes hostname's own record.
     setSourceHost(hostname);
 
@@ -440,9 +471,7 @@ export function App() {
       }));
     }
 
-    const hostSettings = await readHostSettings(hostname);
     await saveAndInject({
-      ...hostSettings,
       fontFamily,
       monoFontFamily: serializeFontStack(monoFont ? [monoFont] : []),
       fontEnabled: checked,
@@ -528,13 +557,7 @@ export function App() {
       return;
     }
 
-    // Only cssEnabled changes. The rest of the record round-trips through
-    // readHostSettings, which resolves fontEnabled from the auto-enable and
-    // preset rules; spreading the raw stored record instead would write
-    // `fontEnabled: false` for a host that has none yet, switching the page's
-    // font off along with its CSS. src/content/content.test.ts pins this.
-    const settings = await readHostSettings(hostname);
-    await saveAndInject({ ...settings, cssEnabled: checked });
+    await saveAndInject({ cssEnabled: checked });
   }
 
   async function handleSaveCSS() {
@@ -544,8 +567,7 @@ export function App() {
     try {
       // Persist exactly what the editor holds - formatting is the Format
       // button's job, not an implicit side effect of saving.
-      const settings = await readHostSettings(hostname);
-      await saveAndInject({ ...settings, customCSS });
+      await saveAndInject({ customCSS });
       setSavedCSS(customCSS);
     } catch (error) {
       console.error("Error saving CSS:", error);
@@ -558,8 +580,7 @@ export function App() {
     if (!hostname) return;
 
     try {
-      const settings = await readHostSettings(hostname);
-      await saveAndInject({ ...settings, customCSS: "" });
+      await saveAndInject({ customCSS: "" });
       setCustomCSS("");
       setSavedCSS("");
     } catch (error) {
@@ -574,8 +595,7 @@ export function App() {
       return;
     }
 
-    const settings = await readHostSettings(hostname);
-    await saveAndInject({ ...settings, includeSubdomains: checked });
+    await saveAndInject({ includeSubdomains: checked });
   }
 
   // Drops hostname's own record so it falls back to whatever it would
@@ -632,11 +652,6 @@ export function App() {
 
   function handleTabsKeyDown(event: React.KeyboardEvent<HTMLElement>) {
     const currentIndex = TABS.findIndex((tab) => tab.id === activeTab);
-
-    if (currentIndex === -1) {
-      return;
-    }
-
     let nextIndex: number | null = null;
 
     if (event.key === "ArrowRight") {
@@ -702,9 +717,7 @@ export function App() {
                 return (
                   <button
                     key={tab.id}
-                    ref={(el) => {
-                      tabRefs.current[tab.id] = el;
-                    }}
+                    ref={tabRefSetters[tab.id]}
                     id={`tab-${tab.id}`}
                     type="button"
                     role="tab"
@@ -1421,27 +1434,15 @@ export function App() {
                     <p className="mt-1 text-xs text-muted-foreground">
                       {t("settings.themeHelp")}
                     </p>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {THEME_OPTIONS.map((option) => {
-                        const Icon = option.icon;
-                        return (
-                          <Button
-                            key={option.value}
-                            type="button"
-                            variant={
-                              option.value === theme ? "default" : "outline"
-                            }
-                            size="sm"
-                            onClick={() => setTheme(option.value)}
-                            className="gap-1.5 h-7 text-xs"
-                            aria-pressed={option.value === theme}
-                          >
-                            <Icon className="h-3 w-3" />
-                            {t(option.labelKey)}
-                          </Button>
-                        );
-                      })}
-                    </div>
+                    <SegmentedControl
+                      options={THEME_OPTIONS.map((option) => ({
+                        value: option.value,
+                        label: t(option.labelKey),
+                        icon: option.icon,
+                      }))}
+                      value={theme}
+                      onChange={setTheme}
+                    />
                   </div>
 
                   <Separator />
@@ -1453,26 +1454,14 @@ export function App() {
                     <p className="mt-1 text-xs text-muted-foreground">
                       {t("settings.languageHelp")}
                     </p>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {LOCALES.map((option) => (
-                        <Button
-                          key={option.code}
-                          type="button"
-                          variant={
-                            option.code === locale ? "default" : "outline"
-                          }
-                          size="sm"
-                          onClick={() => setLocale(option.code)}
-                          className="gap-1.5 h-7 text-xs"
-                          aria-pressed={option.code === locale}
-                        >
-                          {option.code === locale ? (
-                            <Check className="h-3 w-3" />
-                          ) : null}
-                          {option.nativeName}
-                        </Button>
-                      ))}
-                    </div>
+                    <SegmentedControl
+                      options={LOCALES.map((option) => ({
+                        value: option.code,
+                        label: option.nativeName,
+                      }))}
+                      value={locale}
+                      onChange={setLocale}
+                    />
                   </div>
 
                   <Separator />

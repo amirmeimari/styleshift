@@ -25,9 +25,6 @@ export function installChromeMock(): void {
 
   const store = new Map<string, unknown>();
   const listeners = new Set<StorageListener>();
-  // In-memory only, like `store` above - resets on reload, and grant/revoke
-  // never actually touches chrome.fontSettings outside a real extension host.
-  const fontSettingsState = { granted: false };
 
   const readKeys = (keys: string | string[] | null | undefined) => {
     if (keys === null || keys === undefined) {
@@ -100,19 +97,6 @@ export function installChromeMock(): void {
       getURL: (path: string) => `/${path.replace(/^\//, "")}`,
       onMessage: { addListener: () => {}, removeListener: () => {} },
       onInstalled: { addListener: () => {} },
-    },
-    permissions: {
-      async contains() {
-        return fontSettingsState.granted;
-      },
-      async request() {
-        fontSettingsState.granted = true;
-        return true;
-      },
-      async remove() {
-        fontSettingsState.granted = false;
-        return true;
-      },
     },
     fontSettings: {
       async setMinimumFontSize() {},

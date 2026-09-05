@@ -180,11 +180,23 @@ export async function readTypography(): Promise<TypographySettings> {
   return normalizeTypography(stored[TYPOGRAPHY_KEY]);
 }
 
+// Chained onto itself so concurrent callers (e.g. a slider firing several
+// onChange events before the first write lands) each see the previous call's
+// result rather than racing a read-modify-write against it and silently
+// dropping one field's update. Lazily seeded on first call rather than at
+// module load, so importing this module never touches chrome.storage before
+// a caller actually asks for a write.
+let typographyWriteQueue: Promise<TypographySettings> | null = null;
+
 export async function updateTypography(
   patch: Partial<TypographySettings>,
 ): Promise<TypographySettings> {
-  const current = await readTypography();
-  const next = normalizeTypography({ ...current, ...patch });
-  await chrome.storage.local.set({ [TYPOGRAPHY_KEY]: next });
-  return next;
+  typographyWriteQueue = (typographyWriteQueue ?? readTypography()).then(
+    async (current) => {
+      const next = normalizeTypography({ ...current, ...patch });
+      await chrome.storage.local.set({ [TYPOGRAPHY_KEY]: next });
+      return next;
+    },
+  );
+  return typographyWriteQueue;
 }

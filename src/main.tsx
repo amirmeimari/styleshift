@@ -4,7 +4,7 @@ import { App } from "@/popup/App";
 import "@/index.css";
 import { I18nProvider } from "@/shared/i18n/use-i18n";
 import { ThemeProvider } from "@/shared/theme-provider";
-import { THEME_STORAGE_KEY, isThemePref, resolveTheme } from "@/shared/theme";
+import { bootstrapThemeAndLocale } from "@/shared/bootstrap";
 
 // Dev server only: stub the chrome.* APIs so the popup is interactive outside
 // an extension host. Stripped from the production bundle.
@@ -16,23 +16,15 @@ if (import.meta.env.DEV) {
 document.documentElement.classList.add("styleshift-popup-page");
 document.body.classList.add("styleshift-popup-page");
 
-// Set the class before the first paint so there is no flash of the wrong
-// theme when the user has an explicit override that disagrees with the OS.
-try {
-  const stored = await chrome.storage.local.get(THEME_STORAGE_KEY);
-  const pref = stored[THEME_STORAGE_KEY];
-  document.documentElement.classList.toggle(
-    "dark",
-    resolveTheme(isThemePref(pref) ? pref : "system") === "dark",
-  );
-} catch {
-  // ThemeProvider will resolve and apply it once mounted instead.
-}
+// Resolves + paints the stored theme/language before the first render (no
+// flash of the wrong one), in one batched storage read the providers below
+// don't need to repeat.
+const { theme, locale } = await bootstrapThemeAndLocale();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <ThemeProvider>
-      <I18nProvider>
+    <ThemeProvider initialTheme={theme}>
+      <I18nProvider initialLocale={locale}>
         <App />
       </I18nProvider>
     </ThemeProvider>

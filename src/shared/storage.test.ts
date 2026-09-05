@@ -11,6 +11,7 @@ import {
   readHostSettings,
   resolveHostSettings,
   updateHostSettings,
+  updateTypography,
 } from "./storage";
 import {
   AUTO_ENABLE_ALL_SITES_KEY,
@@ -202,5 +203,26 @@ describe("updateHostSettings / clearHostSettings round-trip", () => {
     const resolved = await resolveHostSettings("example.org");
     expect(resolved.sourceHost).toBeNull();
     expect(resolved.settings.customCSS).toBe(DEFAULT_SETTINGS.customCSS);
+  });
+});
+
+describe("updateTypography", () => {
+  it("does not lose a field from a concurrent update to a different field", async () => {
+    // Two overlapping calls (e.g. dragging one slider right after another,
+    // both firing before the first write lands) each read-modify-write the
+    // same stored object; without serializing them, the second call can read
+    // before the first call's write completes and clobber it on write.
+    const [first, second] = await Promise.all([
+      updateTypography({ lineHeight: 1.6 }),
+      updateTypography({ letterSpacing: 0.02 }),
+    ]);
+
+    expect(second.lineHeight).toBe(first.lineHeight);
+    expect(second).toEqual({
+      lineHeight: 1.6,
+      letterSpacing: 0.02,
+      fontWeight: null,
+      minFontSize: null,
+    });
   });
 });

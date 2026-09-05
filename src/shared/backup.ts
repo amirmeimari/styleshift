@@ -100,6 +100,14 @@ const MAX_SITES = 5000;
 const MAX_CSS_LENGTH = 100_000; // ~100 KB
 const HOSTNAME_KEY_PATTERN = /^[a-z0-9][a-z0-9.\-_]{0,252}$/i;
 
+// isHostSettingsKey alone is a tautology of "not the reserved prefix" - true
+// for any non-__styleshift string, arrays included. This is the actual shape
+// check callers need when they must tell a real per-host record apart from
+// an arbitrary key (e.g. replace-mode cleanup deciding what it owns).
+export function isValidHostSettingsKey(key: string): boolean {
+  return isHostSettingsKey(key) && HOSTNAME_KEY_PATTERN.test(key);
+}
+
 function sanitizeStringField(
   value: unknown,
   fallback: string,
@@ -299,7 +307,9 @@ export function parseBackup(text: string): BackupParseResult {
   warnings.push(...globalWarnings);
 
   const rawSites = (
-    obj.sites && typeof obj.sites === "object" ? obj.sites : {}
+    obj.sites && typeof obj.sites === "object" && !Array.isArray(obj.sites)
+      ? obj.sites
+      : {}
   ) as Record<string, unknown>;
   const sites: Record<string, StyleShiftSettings> = {};
   let acceptedSites = 0;
@@ -310,7 +320,7 @@ export function parseBackup(text: string): BackupParseResult {
       droppedSites++;
       continue;
     }
-    if (!isHostSettingsKey(key) || !HOSTNAME_KEY_PATTERN.test(key)) {
+    if (!isValidHostSettingsKey(key)) {
       droppedSites++;
       continue;
     }

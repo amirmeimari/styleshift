@@ -575,11 +575,11 @@ export const translations: Translations = {
     fa: "کمترین اندازهٔ فونت",
   },
   "options.minFontSizeHelp": {
-    en: "Enlarges any text smaller than this, on every site - not just the ones StyleShift is turned on for. Never shrinks text. Requires a one-time permission because it uses Chrome's own font setting.",
-    es: "Agranda cualquier texto más pequeño que esto, en todos los sitios, no solo en los que StyleShift está activado. Nunca reduce el texto. Requiere un permiso único porque usa el ajuste de fuente propio de Chrome.",
-    ar: "يكبّر أي نص أصغر من هذا الحجم، في كل المواقع - وليس فقط المواقع المفعّل عليها StyleShift. لا يُصغّر النص أبدًا. يتطلب إذنًا لمرة واحدة لأنه يستخدم إعداد الخط الخاص بمتصفح Chrome نفسه.",
-    zh: "在所有网站上放大任何小于此值的文字——不仅限于已启用 StyleShift 的网站，且绝不会缩小文字。由于使用的是 Chrome 自身的字体设置，需要一次性授权。",
-    fa: "هر متنی کوچک‌تر از این اندازه را در همهٔ سایت‌ها بزرگ می‌کند - نه فقط سایت‌هایی که StyleShift برایشان روشن است. هرگز متن را کوچک نمی‌کند. چون از تنظیم فونت خودِ Chrome استفاده می‌کند، به یک مجوز یک‌بار نیاز دارد.",
+    en: "Enlarges any text smaller than this, on every site - not just the ones StyleShift is turned on for. Never shrinks text.",
+    es: "Agranda cualquier texto más pequeño que esto, en todos los sitios, no solo en los que StyleShift está activado. Nunca reduce el texto.",
+    ar: "يكبّر أي نص أصغر من هذا الحجم، في كل المواقع - وليس فقط المواقع المفعّل عليها StyleShift. لا يُصغّر النص أبدًا.",
+    zh: "在所有网站上放大任何小于此值的文字——不仅限于已启用 StyleShift 的网站，且绝不会缩小文字。",
+    fa: "هر متنی کوچک‌تر از این اندازه را در همهٔ سایت‌ها بزرگ می‌کند - نه فقط سایت‌هایی که StyleShift برایشان روشن است. هرگز متن را کوچک نمی‌کند.",
   },
   "options.minFontSizeLabel": {
     en: "Size",
@@ -588,33 +588,12 @@ export const translations: Translations = {
     zh: "大小",
     fa: "اندازه",
   },
-  "options.enablePermission": {
-    en: "Enable minimum font size",
-    es: "Activar tamaño mínimo de fuente",
-    ar: "تفعيل أصغر حجم للخط",
-    zh: "启用最小字号",
-    fa: "فعال‌کردن کمترین اندازهٔ فونت",
-  },
-  "options.permissionDenied": {
-    en: "Permission was not granted, so this has no effect. You can try again any time.",
-    es: "No se concedió el permiso, así que esto no tiene efecto. Puedes volver a intentarlo cuando quieras.",
-    ar: "لم يُمنح الإذن، لذا ليس لهذا أي تأثير. يمكنك المحاولة مرة أخرى في أي وقت.",
-    zh: "未获得授权，因此不会生效。你可以随时重试。",
-    fa: "مجوز داده نشد، بنابراین این گزینه اثری ندارد. هر وقت خواستید می‌توانید دوباره امتحان کنید.",
-  },
   "options.turnOff": {
     en: "Turn off",
     es: "Desactivar",
     ar: "إيقاف",
     zh: "关闭",
     fa: "خاموش کردن",
-  },
-  "options.revokePermission": {
-    en: "Revoke permission",
-    es: "Revocar permiso",
-    ar: "إلغاء الإذن",
-    zh: "撤销权限",
-    fa: "لغو مجوز",
   },
 
   "options.backupTitle": {

@@ -15,6 +15,7 @@ import {
   type LocaleCode,
 } from "./locales";
 import { translate, type MessageVars } from "./translations";
+import { useStorageKeyListener } from "../use-storage-key-listener";
 
 type I18nContextValue = {
   locale: LocaleCode;
@@ -45,13 +46,28 @@ function applyDocumentLocale(locale: LocaleCode) {
   document.documentElement.dir = localeDir(locale);
 }
 
-export function I18nProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<LocaleCode>(DEFAULT_LOCALE);
+export function I18nProvider({
+  children,
+  initialLocale,
+}: {
+  children: ReactNode;
+  // Pass this when the caller already resolved the stored locale before
+  // mount (e.g. main.tsx's flash-prevention step), so this provider doesn't
+  // repeat the same chrome.storage.local read.
+  initialLocale?: LocaleCode;
+}) {
+  const [locale, setLocaleState] = useState<LocaleCode>(
+    initialLocale ?? DEFAULT_LOCALE,
+  );
 
   useEffect(() => {
     let mounted = true;
 
-    readStoredLocale().then((stored) => {
+    const initial = initialLocale
+      ? Promise.resolve(initialLocale)
+      : readStoredLocale();
+
+    initial.then((stored) => {
       if (!mounted) {
         return;
       }
@@ -59,27 +75,23 @@ export function I18nProvider({ children }: { children: ReactNode }) {
       applyDocumentLocale(stored);
     });
 
-    // Keep every open page in sync when the language changes elsewhere.
-    const onChanged = (
-      changes: Record<string, chrome.storage.StorageChange>,
-      area: string,
-    ) => {
-      if (area !== "local" || !changes[LOCALE_STORAGE_KEY]) {
-        return;
-      }
-      const next = changes[LOCALE_STORAGE_KEY].newValue;
+    return () => {
+      mounted = false;
+    };
+    // Only ever consult the caller's pre-resolved value on the initial mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Keep every open page in sync when the language changes elsewhere.
+  useStorageKeyListener(
+    LOCALE_STORAGE_KEY,
+    useCallback((next) => {
       if (isLocaleCode(next)) {
         setLocaleState(next);
         applyDocumentLocale(next);
       }
-    };
-
-    chrome.storage?.onChanged?.addListener(onChanged);
-    return () => {
-      mounted = false;
-      chrome.storage?.onChanged?.removeListener(onChanged);
-    };
-  }, []);
+    }, []),
+  );
 
   const setLocale = useCallback(async (next: LocaleCode) => {
     setLocaleState(next);

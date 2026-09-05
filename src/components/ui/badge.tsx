@@ -12,9 +12,9 @@ const badgeVariants = cva(
         secondary:
           "border-border bg-secondary text-secondary-foreground shadow-[inset_0_1px_0_rgba(var(--fabric-sheen-rgb),.3)]",
         destructive:
-          "border-[var(--fabric-terracotta-border)] bg-[var(--fabric-terracotta)] text-[var(--fabric-on-terracotta)] shadow-[inset_0_1px_0_rgba(var(--fabric-sheen-rgb),.14)]",
+          "border-[var(--fabric-terracotta-border)] bg-[var(--fabric-terracotta-fill)] text-[var(--fabric-on-terracotta)] shadow-[inset_0_1px_0_rgba(var(--fabric-sheen-rgb),.14)]",
         olive:
-          "border-[var(--fabric-olive-border)] bg-[var(--fabric-olive)] text-[var(--fabric-on-olive)] shadow-[inset_0_1px_0_rgba(var(--fabric-sheen-rgb),.12)]",
+          "border-[var(--fabric-olive-border)] bg-[var(--fabric-olive-fill)] text-[var(--fabric-on-olive)] shadow-[inset_0_1px_0_rgba(var(--fabric-sheen-rgb),.12)]",
         mustard:
           "border-[var(--fabric-mustard-border)] bg-[var(--fabric-mustard)] text-[var(--fabric-on-mustard)] shadow-[inset_0_1px_0_rgba(var(--fabric-sheen-rgb),.2)]",
         info: "border-[var(--fabric-blue-thread-border)] bg-[var(--fabric-blue-thread)] text-[var(--fabric-on-denim)] shadow-[inset_0_1px_0_rgba(var(--fabric-sheen-rgb),.14)]",

@@ -553,6 +553,16 @@ describe("TARGET_EXCLUSIONS extraction", () => {
     expect(PROSE_WEIGHT_TARGET_SELECTOR).toContain(`body${TARGET_EXCLUSIONS}`);
     expect(PROSE_WEIGHT_TARGET_SELECTOR).toContain(`p${TARGET_EXCLUSIONS}`);
   });
+
+  it("PROSE_WEIGHT_TARGET_SELECTOR excludes th like it excludes headings", () => {
+    // th is bold by default in every browser's UA stylesheet, same as
+    // h1-h6 - flattening it would erase the header/data distinction in
+    // every table on the page.
+    expect(PROSE_WEIGHT_TARGET_SELECTOR).not.toContain(
+      `th${TARGET_EXCLUSIONS}`,
+    );
+    expect(PROSE_WEIGHT_TARGET_SELECTOR).toContain(`td${TARGET_EXCLUSIONS}`);
+  });
 });
 
 describe("normalizeTypography", () => {

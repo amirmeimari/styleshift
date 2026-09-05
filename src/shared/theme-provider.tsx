@@ -12,9 +12,9 @@ import {
   THEME_STORAGE_KEY,
   isThemePref,
   resolveTheme,
-  systemPrefersDark,
   type ThemePref,
 } from "./theme";
+import { useStorageKeyListener } from "./use-storage-key-listener";
 
 type ThemeContextValue = {
   theme: ThemePref;
@@ -39,48 +39,68 @@ async function readStoredTheme(): Promise<ThemePref> {
   return DEFAULT_THEME;
 }
 
-function applyDocumentTheme(pref: ThemePref) {
-  document.documentElement.classList.toggle(
-    "dark",
-    resolveTheme(pref) === "dark",
+export function ThemeProvider({
+  children,
+  initialTheme,
+}: {
+  children: ReactNode;
+  // Pass this when the caller already resolved (and painted) the stored pref
+  // before mount - e.g. main.tsx's flash-prevention step - so this provider
+  // doesn't repeat the same chrome.storage.local read.
+  initialTheme?: ThemePref;
+}) {
+  const [theme, setThemeState] = useState<ThemePref>(
+    initialTheme ?? DEFAULT_THEME,
   );
-}
+  // Real state, not a value derived from `theme` on every read - it must be
+  // independently updatable so an OS-level theme flip (which doesn't change
+  // `theme` at all while pref is "system") still propagates to consumers
+  // like the CodeMirror editor's theme compartment.
+  const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">(() =>
+    resolveTheme(initialTheme ?? DEFAULT_THEME),
+  );
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<ThemePref>(DEFAULT_THEME);
+  const applyTheme = useCallback((pref: ThemePref) => {
+    const resolved = resolveTheme(pref);
+    document.documentElement.classList.toggle("dark", resolved === "dark");
+    setResolvedTheme(resolved);
+  }, []);
 
   useEffect(() => {
     let mounted = true;
 
-    readStoredTheme().then((stored) => {
+    const initial = initialTheme
+      ? Promise.resolve(initialTheme)
+      : readStoredTheme();
+
+    initial.then((stored) => {
       if (!mounted) {
         return;
       }
       setThemeState(stored);
-      applyDocumentTheme(stored);
+      applyTheme(stored);
     });
 
-    // Keep every open page in sync when the theme changes elsewhere.
-    const onChanged = (
-      changes: Record<string, chrome.storage.StorageChange>,
-      area: string,
-    ) => {
-      if (area !== "local" || !changes[THEME_STORAGE_KEY]) {
-        return;
-      }
-      const next = changes[THEME_STORAGE_KEY].newValue;
-      if (isThemePref(next)) {
-        setThemeState(next);
-        applyDocumentTheme(next);
-      }
-    };
-
-    chrome.storage?.onChanged?.addListener(onChanged);
     return () => {
       mounted = false;
-      chrome.storage?.onChanged?.removeListener(onChanged);
     };
+    // Only ever consult the caller's pre-resolved value on the initial mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Keep every open page in sync when the theme changes elsewhere.
+  useStorageKeyListener(
+    THEME_STORAGE_KEY,
+    useCallback(
+      (next) => {
+        if (isThemePref(next)) {
+          setThemeState(next);
+          applyTheme(next);
+        }
+      },
+      [applyTheme],
+    ),
+  );
 
   // While following the OS, react to it changing without a storage write.
   useEffect(() => {
@@ -88,29 +108,27 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       return;
     }
     const media = window.matchMedia("(prefers-color-scheme: dark)");
-    const onMediaChange = () => applyDocumentTheme("system");
+    const onMediaChange = () => applyTheme("system");
     media.addEventListener("change", onMediaChange);
     return () => media.removeEventListener("change", onMediaChange);
-  }, [theme]);
+  }, [theme, applyTheme]);
 
-  const setTheme = useCallback(async (next: ThemePref) => {
-    setThemeState(next);
-    applyDocumentTheme(next);
-    try {
-      await chrome.storage.local.set({ [THEME_STORAGE_KEY]: next });
-    } catch {
-      // in-memory state is already updated
-    }
-  }, []);
+  const setTheme = useCallback(
+    async (next: ThemePref) => {
+      setThemeState(next);
+      applyTheme(next);
+      try {
+        await chrome.storage.local.set({ [THEME_STORAGE_KEY]: next });
+      } catch {
+        // in-memory state is already updated
+      }
+    },
+    [applyTheme],
+  );
 
   const value = useMemo<ThemeContextValue>(
-    () => ({
-      theme,
-      resolvedTheme:
-        theme === "system" ? (systemPrefersDark() ? "dark" : "light") : theme,
-      setTheme,
-    }),
-    [theme, setTheme],
+    () => ({ theme, resolvedTheme, setTheme }),
+    [theme, resolvedTheme, setTheme],
   );
 
   return (
