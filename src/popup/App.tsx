@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import {
   Braces,
   ChevronsUpDown,
@@ -53,7 +53,6 @@ import {
   getHostname,
   getMainDomain,
   hostMatchesPreset,
-  isInjectableUrl,
   parseFontStack,
   readAutoEnableAllSites,
   readCustomFonts,
@@ -69,7 +68,6 @@ import {
   updateGlobalMonoFontStack,
   updateHostSettings,
 } from "@/shared/styleshift";
-import type { ReinjectMessage } from "@/shared/messages";
 import { formatCSS } from "@/css-editor/format-css";
 // CodeMirror is by far the largest dependency in the popup and only the CSS
 // tab needs it, so it is split into its own chunk and fetched on first use.
@@ -79,8 +77,6 @@ const CssEditor = lazy(() =>
     default: module.CssEditor,
   })),
 );
-
-const REINJECT_MESSAGE: ReinjectMessage = { type: "STYLESHIFT_REINJECT" };
 
 type TabId = "fonts" | "upload" | "css" | "settings" | "about";
 
@@ -92,9 +88,13 @@ const TABS: { id: TabId; icon: typeof Type; labelKey: string }[] = [
   { id: "about", icon: Info, labelKey: "tabs.about" },
 ];
 
+// Matches the preset grid's `grid-cols-9` below.
+const PRESET_COLUMN_COUNT = 9;
+
 export function App() {
-  const { t } = useI18n();
+  const { t, dir } = useI18n();
   const [activeTab, setActiveTab] = useState<TabId>("fonts");
+  const tabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
   const [hostname, setHostname] = useState("");
   const [pageName, setPageName] = useState("this page");
   const [fontFamily, setFontFamily] = useState(DEFAULT_SETTINGS.fontFamily);
@@ -126,17 +126,19 @@ export function App() {
     [customFonts],
   );
   const presetColumns = useMemo(() => {
-    const columnSizes = [3, 3, 3, 3, 3, 3, 3, 3, 3];
-    let startIndex = 0;
+    // Matches the grid-cols-9 layout below. Derived from the preset count
+    // rather than hardcoded so a 28th preset doesn't silently vanish off the
+    // end of a fixed 27-slot [3,3,...] split.
+    const perColumn = Math.ceil(
+      POPULAR_SITE_PRESETS.length / PRESET_COLUMN_COUNT,
+    );
 
-    return columnSizes.map((columnSize) => {
-      const column = POPULAR_SITE_PRESETS.slice(
-        startIndex,
-        startIndex + columnSize,
-      );
-      startIndex += columnSize;
-      return column;
-    });
+    return Array.from({ length: PRESET_COLUMN_COUNT }, (_, columnIndex) =>
+      POPULAR_SITE_PRESETS.slice(
+        columnIndex * perColumn,
+        (columnIndex + 1) * perColumn,
+      ),
+    ).filter((column) => column.length > 0);
   }, []);
 
   const monoFontOptions = useMemo(
@@ -418,24 +420,11 @@ export function App() {
 
     setIsSaving(true);
     try {
-      const formattedCSS = formatCSS(customCSS);
+      // Persist exactly what the editor holds - formatting is the Format
+      // button's job, not an implicit side effect of saving.
       const settings = await readHostSettings(hostname);
-      settings.customCSS = formattedCSS;
-      await updateHostSettings(hostname, settings);
-      setCustomCSS(formattedCSS);
-      setSavedCSS(formattedCSS);
-
-      const [tab] = await chrome.tabs.query({
-        active: true,
-        currentWindow: true,
-      });
-      if (tab.id && isInjectableUrl(tab.url)) {
-        try {
-          await chrome.tabs.sendMessage(tab.id, REINJECT_MESSAGE);
-        } catch {
-          // Content script might not be ready
-        }
-      }
+      await saveAndInject({ ...settings, customCSS });
+      setSavedCSS(customCSS);
     } catch (error) {
       console.error("Error saving CSS:", error);
     } finally {
@@ -448,28 +437,46 @@ export function App() {
 
     try {
       const settings = await readHostSettings(hostname);
-      settings.customCSS = "";
-      await updateHostSettings(hostname, settings);
+      await saveAndInject({ ...settings, customCSS: "" });
       setCustomCSS("");
       setSavedCSS("");
-
-      const [tab] = await chrome.tabs.query({
-        active: true,
-        currentWindow: true,
-      });
-      if (tab.id && isInjectableUrl(tab.url)) {
-        try {
-          await chrome.tabs.sendMessage(tab.id, REINJECT_MESSAGE);
-        } catch {
-          // Content script might not be ready
-        }
-      }
     } catch (error) {
       console.error("Error removing CSS:", error);
     }
   }
 
   const hasChanges = customCSS !== savedCSS;
+
+  function handleTabsKeyDown(event: React.KeyboardEvent<HTMLElement>) {
+    const currentIndex = TABS.findIndex((tab) => tab.id === activeTab);
+
+    if (currentIndex === -1) {
+      return;
+    }
+
+    let nextIndex: number | null = null;
+
+    if (event.key === "ArrowRight") {
+      nextIndex =
+        (currentIndex + (dir === "rtl" ? -1 : 1) + TABS.length) % TABS.length;
+    } else if (event.key === "ArrowLeft") {
+      nextIndex =
+        (currentIndex + (dir === "rtl" ? 1 : -1) + TABS.length) % TABS.length;
+    } else if (event.key === "Home") {
+      nextIndex = 0;
+    } else if (event.key === "End") {
+      nextIndex = TABS.length - 1;
+    }
+
+    if (nextIndex === null) {
+      return;
+    }
+
+    event.preventDefault();
+    const nextTab = TABS[nextIndex];
+    setActiveTab(nextTab.id);
+    tabRefs.current[nextTab.id]?.focus();
+  }
 
   return (
     <main className="w-[480px] max-h-[600px] overflow-y-auto overflow-x-hidden bg-background text-foreground fabric-weave">
@@ -500,14 +507,27 @@ export function App() {
           <Separator />
 
           <div>
-            <nav className="relative z-10 flex gap-[6px] mb-[-1px] ms-[10px]">
+            <nav
+              role="tablist"
+              aria-orientation="horizontal"
+              onKeyDown={handleTabsKeyDown}
+              className="relative z-10 flex gap-[6px] mb-[-1px] ms-[10px]"
+            >
               {TABS.map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
                 return (
                   <button
                     key={tab.id}
+                    ref={(el) => {
+                      tabRefs.current[tab.id] = el;
+                    }}
+                    id={`tab-${tab.id}`}
                     type="button"
+                    role="tab"
+                    aria-selected={isActive}
+                    aria-controls="styleshift-tabpanel"
+                    tabIndex={isActive ? 0 : -1}
                     className={[
                       "relative flex items-center justify-center gap-1.5 px-3 py-[11px] text-xs font-semibold border border-border rounded-t-lg cursor-pointer transition-all duration-150",
                       isActive
@@ -522,7 +542,13 @@ export function App() {
                 );
               })}
             </nav>
-            <div className="relative rounded-lg border border-border bg-[#F5EDE0] p-3 shadow-fabric fabric-weave fabric-stitch">
+            <div
+              id="styleshift-tabpanel"
+              role="tabpanel"
+              aria-labelledby={`tab-${activeTab}`}
+              tabIndex={0}
+              className="relative rounded-lg border border-border bg-[#F5EDE0] p-3 shadow-fabric fabric-weave fabric-stitch"
+            >
               {activeTab === "fonts" && (
                 <>
                   <section className="space-y-2">
@@ -738,7 +764,12 @@ export function App() {
                                       ? "border-[var(--fabric-stitch)] bg-[var(--fabric-linen)] text-foreground hover:brightness-[.97] hover:shadow-sm"
                                       : "border-border bg-[var(--fabric-canvas)] opacity-55 hover:border-[var(--fabric-stitch)] hover:opacity-100 hover:shadow-sm",
                                   ].join(" ")}
-                                  title={`${active ? "Disable" : "Enable"} ${preset.label}`}
+                                  title={t(
+                                    active
+                                      ? "popup.disablePreset"
+                                      : "popup.enablePreset",
+                                    { site: preset.label },
+                                  )}
                                   aria-pressed={active}
                                   onClick={() =>
                                     handlePresetToggle(preset.host)

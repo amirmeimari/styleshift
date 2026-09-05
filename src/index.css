@@ -74,11 +74,8 @@
     --fabric-stitch: #a38362;
     --fabric-canvas: #efe3cf;
     --fabric-linen: #e4d3bb;
-    --fabric-raised: #d8c1a3;
-    --fabric-accent-surface: #c9b18f;
 
     --fabric-denim: #2d4263;
-    --fabric-denim-light: #4f6588;
     --fabric-denim-border: #1d2f4a;
     --fabric-olive: #7a7d52;
     --fabric-olive-border: #5d6040;
@@ -91,7 +88,6 @@
     --fabric-red-thread: #a04a42;
     --fabric-blue-thread: #3d5b8b;
     --fabric-green-thread: #5c7d58;
-    --fabric-rose: #c78b83;
   }
 }
 

@@ -140,6 +140,20 @@ export const translations: Translations = {
     zh: "点击切换",
     fa: "برای تغییر کلیک کنید",
   },
+  "popup.disablePreset": {
+    en: "Disable {site}",
+    es: "Desactivar {site}",
+    ar: "تعطيل {site}",
+    zh: "禁用 {site}",
+    fa: "غیرفعال کردن {site}",
+  },
+  "popup.enablePreset": {
+    en: "Enable {site}",
+    es: "Activar {site}",
+    ar: "تفعيل {site}",
+    zh: "启用 {site}",
+    fa: "فعال کردن {site}",
+  },
   "popup.applyFontFor": {
     en: "Apply font for {page}",
     es: "Aplicar fuente en {page}",
