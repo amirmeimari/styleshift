@@ -19,6 +19,7 @@ import {
   applySettings,
   customFontFaces,
   ensureStyle,
+  hostSettingsCandidates,
   removeInjectedStyles,
   serializeFontStack,
 } from "@/shared/style-core";
@@ -281,13 +282,16 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     return;
   }
 
+  // A page on a subdomain (e.g. gist.github.com) can inherit its settings
+  // from an ancestor domain's key (github.com) - react to a change on any
+  // candidate in that chain, not just the exact hostname.
   const settingsChanged =
     globalChange ||
     changes[AUTO_ENABLE_ALL_SITES_KEY] ||
     changes[GLOBAL_FONT_STACK_KEY] ||
     changes[GLOBAL_MONO_FONT_STACK_KEY] ||
     changes[TYPOGRAPHY_KEY] ||
-    changes[hostname];
+    hostSettingsCandidates(hostname).some((key) => changes[key]);
 
   if (settingsChanged) {
     scheduleLoadAndApply(0);

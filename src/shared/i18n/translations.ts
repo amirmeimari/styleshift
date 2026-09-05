@@ -168,6 +168,13 @@ export const translations: Translations = {
     zh: "为 {page} 开启或关闭 StyleShift 字体更改。",
     fa: "تغییرات فونت StyleShift را برای {page} روشن یا خاموش کنید.",
   },
+  "popup.inheritedFrom": {
+    en: "Inherited from {host}",
+    es: "Heredado de {host}",
+    ar: "موروث من {host}",
+    zh: "继承自 {host}",
+    fa: "به ارث رسیده از {host}",
+  },
   "popup.codeFont": {
     en: "Code font",
     es: "Fuente de código",
@@ -344,6 +351,27 @@ export const translations: Translations = {
     ar: "لديك تغييرات غير محفوظة",
     zh: "你有未保存的更改",
     fa: "تغییرات ذخیره‌نشده دارید",
+  },
+  "editor.includeSubdomains": {
+    en: "Apply to subdomains",
+    es: "Aplicar a subdominios",
+    ar: "تطبيق على النطاقات الفرعية",
+    zh: "应用到子域名",
+    fa: "اعمال روی زیردامنه‌ها",
+  },
+  "editor.includeSubdomainsHelp": {
+    en: "When on, subdomains of {host} inherit these settings until they're customized on their own.",
+    es: "Si está activado, los subdominios de {host} heredan esta configuración hasta que se personalicen por su cuenta.",
+    ar: "عند التفعيل، ترث النطاقات الفرعية لـ {host} هذه الإعدادات إلى أن يتم تخصيصها بشكل مستقل.",
+    zh: "开启后，{host} 的子域名将继承这些设置，直到它们被单独自定义。",
+    fa: "در صورت روشن بودن، زیردامنه‌های {host} این تنظیمات را به ارث می‌برند تا زمانی که خودشان سفارشی‌سازی شوند.",
+  },
+  "editor.resetHost": {
+    en: "Reset site",
+    es: "Restablecer sitio",
+    ar: "إعادة تعيين الموقع",
+    zh: "重置网站",
+    fa: "بازنشانی سایت",
   },
 
   "fonts.customFonts": {

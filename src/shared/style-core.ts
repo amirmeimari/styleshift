@@ -15,6 +15,12 @@ export type StyleShiftSettings = {
    */
   cssEnabled: boolean;
   customCSS: string;
+  /**
+   * Whether hosts below this one may inherit these settings when they have no
+   * record of their own. Absent in settings written before this existed,
+   * which read as `true` - the same degrade-gracefully trick as `cssEnabled`.
+   */
+  includeSubdomains: boolean;
 };
 
 export type StyleShiftStorage = Record<string, StyleShiftSettings>;
@@ -134,6 +140,7 @@ export const DEFAULT_SETTINGS: StyleShiftSettings = {
   fontEnabled: false,
   cssEnabled: true,
   customCSS: "",
+  includeSubdomains: true,
 };
 
 export const TYPOGRAPHY_KEY = "__styleshift_typography__";
@@ -418,6 +425,41 @@ export function getMainDomain(hostname: string): string {
   }
 
   return parts.slice(-2).join(".");
+}
+
+// Storage keys to consider for `hostname`, most specific first, bounded at
+// the registrable main domain (via getMainDomain) so a record can never leak
+// across unrelated sites. Bare hosts (localhost), IPv4 literals, and
+// bracketed IPv6 literals have no hierarchy and resolve to themselves.
+export function hostSettingsCandidates(hostname: string): string[] {
+  const host = hostname.toLowerCase().replace(/\.$/, "");
+
+  if (!host) {
+    return [];
+  }
+
+  if (
+    !host.includes(".") ||
+    host.startsWith("[") ||
+    /^\d+(\.\d+){3}$/.test(host)
+  ) {
+    return [host];
+  }
+
+  const main = getMainDomain(host);
+  const candidates = [host];
+  let current = host;
+
+  while (current !== main) {
+    const next = current.slice(current.indexOf(".") + 1);
+    if (!next || next === current) {
+      break;
+    }
+    candidates.push(next);
+    current = next;
+  }
+
+  return candidates;
 }
 
 export function hostMatchesPreset(

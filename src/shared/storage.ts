@@ -8,6 +8,7 @@ import {
   GLOBAL_FONT_STACK_KEY,
   GLOBAL_MONO_FONT_STACK_KEY,
   TYPOGRAPHY_KEY,
+  hostSettingsCandidates,
   isPreActivatedHost,
   normalizeTypography,
   type StyleShiftSettings,
@@ -66,21 +67,84 @@ export async function updateAutoEnableAllSites(
   await chrome.storage.local.set({ [AUTO_ENABLE_ALL_SITES_KEY]: enabled });
 }
 
+export type ResolvedHostSettings = {
+  settings: StyleShiftSettings;
+  /** Which storage key the settings came from; null when nothing matched. */
+  sourceHost: string | null;
+  /** True when sourceHost is an ancestor of the requested hostname. */
+  inherited: boolean;
+};
+
+// Resolution order: (1) the hostname's own record always wins; (2) else walk
+// the candidate chain and let the nearest ancestor that has a record decide -
+// unless that record opted out via `includeSubdomains: false`, in which case
+// resolution stops there rather than reaching past it to a broader ancestor;
+// (3) else DEFAULT_SETTINGS, with fontEnabled resolved from
+// autoEnable/isPreActivatedHost using the *original* hostname in every case,
+// never an ancestor's.
+export async function resolveHostSettings(
+  hostname: string,
+): Promise<ResolvedHostSettings> {
+  const candidates = hostSettingsCandidates(hostname);
+  const autoEnable = await readAutoEnableAllSites();
+  const fallbackFontEnabled = autoEnable || isPreActivatedHost(hostname);
+
+  if (candidates.length === 0) {
+    return {
+      settings: { ...DEFAULT_SETTINGS, fontEnabled: fallbackFontEnabled },
+      sourceHost: null,
+      inherited: false,
+    };
+  }
+
+  const stored = (await chrome.storage.local.get(
+    candidates,
+  )) as StyleShiftStorage;
+  const [primary, ...ancestors] = candidates;
+
+  const own = stored[primary];
+  if (own) {
+    return {
+      settings: {
+        ...DEFAULT_SETTINGS,
+        ...own,
+        fontEnabled: own.fontEnabled ?? fallbackFontEnabled,
+      },
+      sourceHost: primary,
+      inherited: false,
+    };
+  }
+
+  for (const ancestor of ancestors) {
+    const record = stored[ancestor];
+    if (!record) {
+      continue;
+    }
+    if (record.includeSubdomains === false) {
+      break;
+    }
+    return {
+      settings: {
+        ...DEFAULT_SETTINGS,
+        ...record,
+        fontEnabled: record.fontEnabled ?? fallbackFontEnabled,
+      },
+      sourceHost: ancestor,
+      inherited: true,
+    };
+  }
+
+  return {
+    settings: { ...DEFAULT_SETTINGS, fontEnabled: fallbackFontEnabled },
+    sourceHost: null,
+    inherited: false,
+  };
+}
+
 export async function readHostSettings(
   hostname: string,
 ): Promise<StyleShiftSettings> {
-  const stored = (await chrome.storage.local.get(
-    hostname,
-  )) as StyleShiftStorage;
-  const autoEnable = await readAutoEnableAllSites();
-  const storedSettings = stored[hostname];
-  return {
-    ...DEFAULT_SETTINGS,
-    ...storedSettings,
-    fontEnabled:
-      storedSettings?.fontEnabled ??
-      (autoEnable || isPreActivatedHost(hostname)),
-  };
+  return (await resolveHostSettings(hostname)).settings;
 }
 
 export async function updateHostSettings(
@@ -88,6 +152,11 @@ export async function updateHostSettings(
   settings: StyleShiftSettings,
 ): Promise<void> {
   await chrome.storage.local.set({ [hostname]: settings });
+}
+
+// Un-customize: drop this host's own record so it inherits again.
+export async function clearHostSettings(hostname: string): Promise<void> {
+  await chrome.storage.local.remove(hostname);
 }
 
 export async function readTypography(): Promise<TypographySettings> {

@@ -11,6 +11,7 @@ import {
   generateCustomFontFace,
   getHostname,
   hostMatchesPreset,
+  hostSettingsCandidates,
   isInjectableUrl,
   isPreActivatedHost,
   normalizeTypography,
@@ -114,6 +115,61 @@ describe("hostMatchesPreset / isPreActivatedHost", () => {
     expect(isPreActivatedHost("github.com")).toBe(true);
     expect(isPreActivatedHost("gist.github.com")).toBe(true);
     expect(isPreActivatedHost("example.org")).toBe(false);
+  });
+});
+
+describe("hostSettingsCandidates", () => {
+  it("walks a single-level subdomain up to the main domain", () => {
+    expect(hostSettingsCandidates("www.github.com")).toEqual([
+      "www.github.com",
+      "github.com",
+    ]);
+  });
+
+  it("walks a two-level subdomain through each ancestor", () => {
+    expect(hostSettingsCandidates("gist.github.com")).toEqual([
+      "gist.github.com",
+      "github.com",
+    ]);
+    expect(hostSettingsCandidates("a.b.github.com")).toEqual([
+      "a.b.github.com",
+      "b.github.com",
+      "github.com",
+    ]);
+    expect(hostSettingsCandidates("x.docs.google.com")).toEqual([
+      "x.docs.google.com",
+      "docs.google.com",
+      "google.com",
+    ]);
+  });
+
+  it("stops at a two-part TLD's registrable domain", () => {
+    expect(hostSettingsCandidates("a.b.c.co.uk")).toEqual([
+      "a.b.c.co.uk",
+      "b.c.co.uk",
+      "c.co.uk",
+    ]);
+  });
+
+  it("returns just the host for a bare domain", () => {
+    expect(hostSettingsCandidates("github.com")).toEqual(["github.com"]);
+  });
+
+  it("returns just the host for hosts with no hierarchy", () => {
+    expect(hostSettingsCandidates("localhost")).toEqual(["localhost"]);
+    expect(hostSettingsCandidates("192.168.1.5")).toEqual(["192.168.1.5"]);
+  });
+
+  it("returns [] for an empty hostname", () => {
+    expect(hostSettingsCandidates("")).toEqual([]);
+  });
+
+  it("normalizes case and a trailing dot", () => {
+    expect(hostSettingsCandidates("GIST.GitHub.com")).toEqual([
+      "gist.github.com",
+      "github.com",
+    ]);
+    expect(hostSettingsCandidates("github.com.")).toEqual(["github.com"]);
   });
 });
 
@@ -255,6 +311,7 @@ describe("font availability (mocked document.fonts)", () => {
       fontEnabled: false,
       cssEnabled: true,
       customCSS: "",
+      includeSubdomains: true,
     };
     expect(fontStyleText(settings)).toBe("");
   });
@@ -267,6 +324,7 @@ describe("font availability (mocked document.fonts)", () => {
       fontEnabled: true,
       cssEnabled: true,
       customCSS: "",
+      includeSubdomains: true,
     };
     const css = fontStyleText(settings);
     expect(css).toContain("font-family: Inter !important;");
@@ -281,6 +339,7 @@ describe("font availability (mocked document.fonts)", () => {
       fontEnabled: true,
       cssEnabled: true,
       customCSS: "",
+      includeSubdomains: true,
     };
     const css = fontStyleText(settings);
     expect(css).toContain('font-family: "Fira Code" !important;');
@@ -298,6 +357,7 @@ describe("applySettings CSS gating", () => {
     fontEnabled: false,
     cssEnabled: true,
     customCSS: "body { color: red; }",
+    includeSubdomains: true,
   };
 
   const injectedCss = () =>
@@ -541,6 +601,7 @@ describe("fontStyleText typography rules", () => {
     fontEnabled: true,
     cssEnabled: true,
     customCSS: "",
+    includeSubdomains: true,
   };
 
   it("is byte-identical to the pre-typography output for all four family/mono shapes", () => {

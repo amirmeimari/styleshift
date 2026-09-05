@@ -60,6 +60,7 @@ import {
   DEFAULT_TYPOGRAPHY,
   POPULAR_SITE_PRESETS,
   TYPOGRAPHY_RANGES,
+  clearHostSettings,
   getActiveTab,
   getHostname,
   getMainDomain,
@@ -73,6 +74,7 @@ import {
   readHostSettings,
   readTypography,
   requestReinject,
+  resolveHostSettings,
   serializeFontStack,
   updateAutoEnableAllSites,
   updateGlobalEnabled,
@@ -184,6 +186,11 @@ export function App() {
     Record<string, boolean>
   >({});
   const [cssEnabled, setCssEnabled] = useState(true);
+  // Which storage key the active tab's settings actually came from - null
+  // means nothing matched (defaults), equal to `hostname` means this host has
+  // its own record, anything else means it's inheriting from that ancestor.
+  const [sourceHost, setSourceHost] = useState<string | null>(null);
+  const [includeSubdomains, setIncludeSubdomains] = useState(true);
   const [customCSS, setCustomCSS] = useState(DEFAULT_SETTINGS.customCSS);
   const [savedCSS, setSavedCSS] = useState(DEFAULT_SETTINGS.customCSS);
   const [isSaving, setIsSaving] = useState(false);
@@ -245,20 +252,21 @@ export function App() {
         }
 
         const [
-          settings,
+          resolved,
           enabled,
           globalFontStack,
           globalMonoFontStack,
           fonts,
           storedTypography,
         ] = await Promise.all([
-          readHostSettings(host),
+          resolveHostSettings(host),
           readGlobalEnabled(),
           readGlobalFontStack(),
           readGlobalMonoFontStack(),
           readCustomFonts(),
           readTypography(),
         ]);
+        const settings = resolved.settings;
         const hydratedFontStack =
           globalFontStack.length > 0
             ? globalFontStack
@@ -293,6 +301,8 @@ export function App() {
         setCustomFonts(fonts);
         setPresetStates(Object.fromEntries(presetEntries));
         setCssEnabled(settings.cssEnabled !== false);
+        setSourceHost(resolved.sourceHost);
+        setIncludeSubdomains(settings.includeSubdomains !== false);
         setCustomCSS(settings.customCSS);
         setSavedCSS(settings.customCSS);
         setTypography(storedTypography);
@@ -317,6 +327,8 @@ export function App() {
     }
 
     await updateHostSettings(hostname, nextSettings);
+    // Writing here always materializes hostname's own record.
+    setSourceHost(hostname);
 
     try {
       const tab = await getActiveTab();
@@ -340,7 +352,12 @@ export function App() {
     setFontFamily(nextFontFamily);
     await updateGlobalFontStack(nextFontStack);
 
-    if (hostname) {
+    // Only mirror onto the host's own record when it already has one -
+    // content.ts overwrites fontFamily/monoFontFamily from the global stack
+    // unconditionally regardless (see loadAndApply), so this mirror only
+    // feeds the popup's own hydration fallback. Writing it for a host that
+    // currently inherits would fork it off its ancestor for no reason.
+    if (hostname && sourceHost === hostname) {
       const hostSettings = await readHostSettings(hostname);
       await updateHostSettings(hostname, {
         ...hostSettings,
@@ -381,7 +398,8 @@ export function App() {
     setMonoFont(nextFont);
     await updateGlobalMonoFontStack(nextStack);
 
-    if (hostname) {
+    // See the matching comment in persistFontStack.
+    if (hostname && sourceHost === hostname) {
       const hostSettings = await readHostSettings(hostname);
       await updateHostSettings(hostname, {
         ...hostSettings,
@@ -433,10 +451,15 @@ export function App() {
   async function handlePresetToggle(host: string) {
     const current = presetStates[host] ?? true;
     const next = !current;
-    const settings = await readHostSettings(host);
+    // Start from the preset host's own record if it has one, never from
+    // whatever it currently inherits - spreading an inherited ancestor's
+    // settings here would copy that ancestor's CSS across a domain boundary.
+    const resolved = await resolveHostSettings(host);
+    const base =
+      resolved.sourceHost === host ? resolved.settings : DEFAULT_SETTINGS;
 
     await updateHostSettings(host, {
-      ...settings,
+      ...base,
       fontFamily,
       monoFontFamily: serializeFontStack(monoFont ? [monoFont] : []),
       fontEnabled: next,
@@ -444,12 +467,20 @@ export function App() {
 
     setPresetStates((previous) => ({ ...previous, [host]: next }));
 
-    if (hostMatchesPreset(hostname, host)) {
-      setFontEnabled(next);
-      // The active tab's hostname is usually a *different* storage key from
-      // the preset's (e.g. "www.github.com" vs "github.com"), so its settings
-      // have to be read separately. Spreading the preset's settings here would
-      // overwrite the current host's own custom CSS with the preset's.
+    if (!hostMatchesPreset(hostname, host)) {
+      return;
+    }
+
+    setFontEnabled(next);
+
+    if (host === hostname) {
+      // The write above just materialized hostname's own record.
+      setSourceHost(hostname);
+    } else if (sourceHost === hostname) {
+      // hostname already shadows this preset with its own record (e.g.
+      // "www.github.com" vs "github.com") - keep it in sync. Otherwise
+      // hostname now inherits the preset's new settings automatically, and
+      // writing here would fork it off unnecessarily.
       const currentSettings = await readHostSettings(hostname);
       await updateHostSettings(hostname, {
         ...currentSettings,
@@ -457,13 +488,13 @@ export function App() {
         monoFontFamily: serializeFontStack(monoFont ? [monoFont] : []),
         fontEnabled: next,
       });
+    }
 
-      try {
-        const tab = await getActiveTab();
-        await requestReinject(tab.id);
-      } catch (error) {
-        console.error(error);
-      }
+    try {
+      const tab = await getActiveTab();
+      await requestReinject(tab.id);
+    } catch (error) {
+      console.error(error);
     }
   }
 
@@ -532,6 +563,53 @@ export function App() {
       setSavedCSS("");
     } catch (error) {
       console.error("Error removing CSS:", error);
+    }
+  }
+
+  async function handleIncludeSubdomainsToggle(checked: boolean) {
+    setIncludeSubdomains(checked);
+
+    if (!hostname) {
+      return;
+    }
+
+    const settings = await readHostSettings(hostname);
+    await saveAndInject({ ...settings, includeSubdomains: checked });
+  }
+
+  // Drops hostname's own record so it falls back to whatever it would
+  // otherwise inherit (or to defaults, if nothing does).
+  async function handleResetHost() {
+    if (!hostname) {
+      return;
+    }
+
+    await clearHostSettings(hostname);
+    const resolved = await resolveHostSettings(hostname);
+    const settings = resolved.settings;
+
+    setSourceHost(resolved.sourceHost);
+    setFontEnabled(settings.fontEnabled);
+    setCssEnabled(settings.cssEnabled !== false);
+    setIncludeSubdomains(settings.includeSubdomains !== false);
+    setCustomCSS(settings.customCSS);
+    setSavedCSS(settings.customCSS);
+
+    const matchedPreset = POPULAR_SITE_PRESETS.find((preset) =>
+      hostMatchesPreset(hostname, preset.host),
+    );
+    if (matchedPreset) {
+      setPresetStates((previous) => ({
+        ...previous,
+        [matchedPreset.host]: settings.fontEnabled,
+      }));
+    }
+
+    try {
+      const tab = await getActiveTab();
+      await requestReinject(tab.id);
+    } catch (error) {
+      console.error(error);
     }
   }
 
@@ -910,6 +988,11 @@ export function App() {
                         help={t("popup.applyFontHelp", { page: pageName })}
                       />
                     </div>
+                    {sourceHost && sourceHost !== hostname && (
+                      <p className="pl-6 text-[10px] text-muted-foreground">
+                        {t("popup.inheritedFrom", { host: sourceHost })}
+                      </p>
+                    )}
                   </section>
 
                   <Separator className="my-2" />
@@ -1178,6 +1261,27 @@ export function App() {
                       </div>
                     </div>
                   )}
+                  {hostname && (
+                    <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-[var(--fabric-linen)] px-2 py-1.5">
+                      <div className="flex min-w-0 items-center gap-1">
+                        <p className="min-w-0 truncate text-[10px] text-muted-foreground">
+                          {t("editor.includeSubdomains")}
+                        </p>
+                        <HelpTooltip
+                          label={t("editor.includeSubdomains")}
+                          help={t("editor.includeSubdomainsHelp", {
+                            host: hostname,
+                          })}
+                        />
+                      </div>
+                      <Switch
+                        id="include-subdomains"
+                        checked={includeSubdomains}
+                        onCheckedChange={handleIncludeSubdomainsToggle}
+                        disabled={!canApply}
+                      />
+                    </div>
+                  )}
                   <Suspense
                     fallback={
                       <div className="min-h-[160px] w-full rounded-lg border border-border bg-card shadow-fabric" />
@@ -1236,6 +1340,18 @@ export function App() {
                       <Copy className="h-3.5 w-3.5" />
                       {t("common.copy")}
                     </Button>
+                    {sourceHost === hostname && (
+                      <Button
+                        onClick={handleResetHost}
+                        disabled={!canApply}
+                        variant="secondary"
+                        size="sm"
+                        className="gap-1.5 h-7 text-xs"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        {t("editor.resetHost")}
+                      </Button>
+                    )}
                   </div>
 
                   {hasChanges && (

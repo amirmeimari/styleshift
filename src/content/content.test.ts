@@ -1,8 +1,9 @@
 // End-to-end check of the content script's apply loop against a stubbed
-// chrome.*. It exists for one invariant in particular: switching a host's
-// custom CSS off must leave the font rules alone. The two style elements are
-// written by the same applySettings() call, so a regression there is easy to
-// introduce and invisible until someone's page loses its font.
+// chrome.*. It exists for two invariants in particular: switching a host's
+// custom CSS off must leave the font rules alone, and a subdomain page must
+// react to a settings change on the ancestor domain it inherits from. Both
+// are easy to break and invisible until someone's page loses its font or
+// stops picking up a parent domain's CSS.
 
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import {
@@ -11,47 +12,11 @@ import {
   GLOBAL_FONT_STACK_KEY,
   GLOBAL_MONO_FONT_STACK_KEY,
 } from "@/shared/style-core";
-
-type Change = { oldValue?: unknown; newValue?: unknown };
+import { stubChrome } from "@/shared/test-chrome";
 
 const store: Record<string, unknown> = {};
-const storageListeners = new Set<
-  (changes: Record<string, Change>, area: string) => void
->();
 
 const HOST = "localhost";
-
-function stubChrome() {
-  vi.stubGlobal("chrome", {
-    runtime: {
-      getURL: (path: string) => `chrome-extension://test/${path}`,
-      onMessage: { addListener: () => {} },
-    },
-    storage: {
-      local: {
-        get: async (keys: string | string[]) => {
-          const list = Array.isArray(keys) ? keys : [keys];
-          return Object.fromEntries(
-            list.filter((k) => k in store).map((k) => [k, store[k]]),
-          );
-        },
-        set: async (items: Record<string, unknown>) => {
-          const changes: Record<string, Change> = {};
-          for (const [key, value] of Object.entries(items)) {
-            changes[key] = { oldValue: store[key], newValue: value };
-            store[key] = value;
-          }
-          storageListeners.forEach((listener) => listener(changes, "local"));
-        },
-      },
-      onChanged: {
-        addListener: (
-          listener: (c: Record<string, Change>, a: string) => void,
-        ) => storageListeners.add(listener),
-      },
-    },
-  });
-}
 
 const styleText = (id: string) =>
   document.getElementById(id)?.textContent ?? "";
@@ -69,8 +34,9 @@ describe("content script apply loop", () => {
       fontEnabled: true,
       cssEnabled: true,
       customCSS: "body { background: #f0f0f0; }",
+      includeSubdomains: true,
     };
-    stubChrome();
+    stubChrome(store);
     // Imported for its side effects: importing runs loadAndApply().
     await import("./content");
     await settle();
@@ -103,5 +69,48 @@ describe("content script apply loop", () => {
 
     expect(styleText(CSS_STYLE_ID)).toContain("#f0f0f0");
     expect(styleText(FONT_STYLE_ID)).toBe(fontBefore);
+  });
+});
+
+describe("content script reacts to ancestor-domain settings", () => {
+  it("reapplies a subdomain page when the parent domain's key changes", async () => {
+    const subdomainStore: Record<string, unknown> = {
+      [GLOBAL_FONT_STACK_KEY]: [],
+      [GLOBAL_MONO_FONT_STACK_KEY]: [],
+      "github.com": {
+        fontFamily: "",
+        monoFontFamily: "",
+        fontEnabled: true,
+        cssEnabled: true,
+        customCSS: "body { background: #abcabc; }",
+        includeSubdomains: true,
+      },
+    };
+
+    Object.defineProperty(window, "location", {
+      value: {
+        ...window.location,
+        hostname: "gist.github.com",
+        href: "https://gist.github.com/",
+      },
+      configurable: true,
+    });
+
+    stubChrome(subdomainStore);
+    vi.resetModules();
+    await import("./content");
+    await settle();
+
+    expect(styleText(CSS_STYLE_ID)).toContain("#abcabc");
+
+    await chrome.storage.local.set({
+      "github.com": {
+        ...(subdomainStore["github.com"] as object),
+        customCSS: "body { background: #123123; }",
+      },
+    });
+    await settle();
+
+    expect(styleText(CSS_STYLE_ID)).toContain("#123123");
   });
 });
