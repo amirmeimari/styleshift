@@ -4,6 +4,8 @@ import {
   normalizeTypography,
 } from "@/shared/style-core";
 import { applyMinimumFontSize } from "@/shared/min-font-size";
+import { readHostSettings, updateHostSettings } from "@/shared/storage";
+import { requestReinject } from "@/shared/tabs";
 import type { ReinjectMessage } from "@/shared/messages";
 
 const REINJECT_MESSAGE: ReinjectMessage = { type: "STYLESHIFT_REINJECT" };
@@ -54,4 +56,43 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     // Permission not granted, or chrome.fontSettings unavailable - the
     // options page surfaces the permission state; nothing to do here.
   });
+});
+
+// Alt+Shift+S (see manifest "commands") toggles fonts for the active tab's
+// site without opening the popup - the same operation as the popup's own
+// font on/off switch, just reachable without a click.
+chrome.commands.onCommand.addListener(async (command) => {
+  if (command !== "toggle-font") {
+    return;
+  }
+
+  // The service worker has no notion of a "current" window - lastFocusedWindow
+  // is the form extensions use here instead of the currentWindow that popup/
+  // options pages (which do run in a window) use in tabs.ts's getActiveTab.
+  const [tab] = await chrome.tabs.query({
+    active: true,
+    lastFocusedWindow: true,
+  });
+
+  if (!tab?.id || !isInjectableUrl(tab.url)) {
+    return;
+  }
+
+  let hostname: string;
+  try {
+    hostname = new URL(tab.url!).hostname;
+  } catch {
+    return;
+  }
+
+  if (!hostname) {
+    return;
+  }
+
+  const settings = await readHostSettings(hostname);
+  await updateHostSettings(hostname, {
+    ...settings,
+    fontEnabled: !settings.fontEnabled,
+  });
+  await requestReinject(tab.id);
 });

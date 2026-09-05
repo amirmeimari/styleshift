@@ -30,8 +30,10 @@ import {
 } from "@/shared/style-core";
 import {
   clearHostSettings,
+  readGlobalCSS,
   readTypography,
   resolveHostSettings,
+  updateGlobalCSS,
   updateHostSettings,
   updateTypography,
 } from "@/shared/storage";
@@ -109,6 +111,11 @@ export function OptionsApp() {
   const [editingDraft, setEditingDraft] = useState("");
   const [editingSaved, setEditingSaved] = useState<string | null>(null);
 
+  const [globalCSS, setGlobalCSS] = useState("");
+  const [globalCSSDraft, setGlobalCSSDraft] = useState("");
+  const [showGlobalCssEditor, setShowGlobalCssEditor] = useState(false);
+  const [globalCssSaved, setGlobalCssSaved] = useState<string | null>(null);
+
   async function refreshSites() {
     setSites(await loadSiteRows());
   }
@@ -117,11 +124,13 @@ export function OptionsApp() {
     let mounted = true;
 
     async function load() {
-      const [storedTypography, granted, siteRows] = await Promise.all([
-        readTypography(),
-        hasFontSettingsPermission(),
-        loadSiteRows(),
-      ]);
+      const [storedTypography, granted, siteRows, storedGlobalCSS] =
+        await Promise.all([
+          readTypography(),
+          hasFontSettingsPermission(),
+          loadSiteRows(),
+          readGlobalCSS(),
+        ]);
 
       if (!mounted) {
         return;
@@ -130,6 +139,8 @@ export function OptionsApp() {
       setTypography(storedTypography);
       setHasPermission(granted);
       setSites(siteRows);
+      setGlobalCSS(storedGlobalCSS);
+      setGlobalCSSDraft(storedGlobalCSS);
     }
 
     load();
@@ -286,6 +297,17 @@ export function OptionsApp() {
     setEditingSettings(next);
     setEditingSaved(t("options.cssEditorSavedFor", { host: editingHost }));
     await refreshSites();
+  }
+
+  function toggleGlobalCssEditor() {
+    setShowGlobalCssEditor((open) => !open);
+    setGlobalCssSaved(null);
+  }
+
+  async function handleSaveGlobalCSS() {
+    await updateGlobalCSS(globalCSSDraft);
+    setGlobalCSS(globalCSSDraft);
+    setGlobalCssSaved(t("options.globalCssSaved"));
   }
 
   return (
@@ -534,6 +556,64 @@ export function OptionsApp() {
                   </div>
                 )}
               </div>
+            </section>
+
+            <Separator />
+
+            <section className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <Label className="text-sm font-semibold">
+                    {t("options.globalCssTitle")}
+                  </Label>
+                  <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                    {t("options.globalCssHelp")}
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="h-7 shrink-0 text-xs"
+                  onClick={toggleGlobalCssEditor}
+                >
+                  {t("options.editGlobalCss")}
+                </Button>
+              </div>
+
+              {showGlobalCssEditor && (
+                <div className="space-y-2">
+                  <Suspense
+                    fallback={
+                      <div className="min-h-[200px] w-full rounded-lg border border-border bg-card shadow-fabric" />
+                    }
+                  >
+                    <CssEditor
+                      value={globalCSSDraft}
+                      onChange={setGlobalCSSDraft}
+                      className="min-h-[200px]"
+                    />
+                  </Suspense>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="olive"
+                      size="sm"
+                      className="gap-1.5 h-7 text-xs"
+                      disabled={globalCSSDraft === globalCSS}
+                      onClick={handleSaveGlobalCSS}
+                    >
+                      <Save className="h-3.5 w-3.5" />
+                      {t("common.save")}
+                    </Button>
+                    {globalCssSaved && (
+                      <span className="text-[10px] text-[var(--fabric-olive)]">
+                        {globalCssSaved}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
             </section>
 
             <Separator />

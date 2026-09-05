@@ -834,4 +834,32 @@ export const translations: Translations = {
     zh: "关闭",
     fa: "خاموش",
   },
+  "options.globalCssTitle": {
+    en: "Global CSS",
+    es: "CSS global",
+    ar: "CSS عام",
+    zh: "全局 CSS",
+    fa: "CSS سراسری",
+  },
+  "options.globalCssHelp": {
+    en: "Applies to every site, before any per-site CSS - so a site-specific rule always wins over this one.",
+    es: "Se aplica a todos los sitios, antes de cualquier CSS por sitio - así que una regla específica de un sitio siempre gana sobre esta.",
+    ar: "يُطبَّق على كل المواقع، قبل أي CSS خاص بموقع معيّن - لذا تفوز دائمًا القاعدة الخاصة بالموقع على هذه.",
+    zh: "应用于所有网站，且在任何针对特定网站的 CSS 之前生效 - 因此特定网站的规则总会优先于此规则。",
+    fa: "برای همهٔ سایت‌ها اعمال می‌شود، پیش از هر CSS مخصوص یک سایت - بنابراین قاعدهٔ مخصوص یک سایت همیشه بر این قاعده اولویت دارد.",
+  },
+  "options.editGlobalCss": {
+    en: "Edit global CSS",
+    es: "Editar CSS global",
+    ar: "تعديل CSS العام",
+    zh: "编辑全局 CSS",
+    fa: "ویرایش CSS سراسری",
+  },
+  "options.globalCssSaved": {
+    en: "Global CSS saved.",
+    es: "CSS global guardado.",
+    ar: "تم حفظ CSS العام.",
+    zh: "全局 CSS 已保存。",
+    fa: "CSS سراسری ذخیره شد.",
+  },
 };

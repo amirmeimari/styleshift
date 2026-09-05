@@ -37,6 +37,7 @@ export const GLOBAL_ENABLED_KEY = "__styleshift_enabled__";
 export const GLOBAL_FONT_STACK_KEY = "__styleshift_font_stack__";
 export const GLOBAL_MONO_FONT_STACK_KEY = "__styleshift_mono_font_stack__";
 export const AUTO_ENABLE_ALL_SITES_KEY = "__styleshift_auto_enable_all_sites__";
+export const GLOBAL_CSS_KEY = "__styleshift_global_css__";
 export const CUSTOM_FONTS_KEY = "__styleshift_custom_fonts__";
 export const CUSTOM_FONT_INDEX_KEY = "__styleshift_custom_font_index__";
 export const CUSTOM_FONT_CHUNK_PREFIX = "__styleshift_custom_font_chunk__";
@@ -47,6 +48,12 @@ export type SitePreset = {
   label: string;
   icon: string;
   svgIcon: string;
+  /**
+   * True for the handful of vendored preset icons whose SVG is a single fixed
+   * black fill on a transparent background (not `currentColor`-adjacent) -
+   * invisible against a dark popup background. Inverted via CSS in dark mode.
+   */
+  monochrome?: boolean;
 };
 
 export const POPULAR_SITE_PRESETS: SitePreset[] = [
@@ -79,7 +86,7 @@ export const POPULAR_SITE_PRESETS: SitePreset[] = [
   { host: "figma.com", label: "Figma", icon: "F", svgIcon: "figma" },
   { host: "npmjs.com", label: "npm", icon: "NP", svgIcon: "npm" },
   { host: "linkedin.com", label: "LinkedIn", icon: "IN", svgIcon: "linkedin" },
-  { host: "x.com", label: "X", icon: "X", svgIcon: "x" },
+  { host: "x.com", label: "X", icon: "X", svgIcon: "x", monochrome: true },
   { host: "facebook.com", label: "Facebook", icon: "FB", svgIcon: "facebook" },
   {
     host: "instagram.com",
@@ -98,8 +105,15 @@ export const POPULAR_SITE_PRESETS: SitePreset[] = [
     label: "Wikipedia",
     icon: "W",
     svgIcon: "wikipedia",
+    monochrome: true,
   },
-  { host: "medium.com", label: "Medium", icon: "M", svgIcon: "medium" },
+  {
+    host: "medium.com",
+    label: "Medium",
+    icon: "M",
+    svgIcon: "medium",
+    monochrome: true,
+  },
   {
     host: "drive.google.com",
     label: "Google Drive",
@@ -118,6 +132,7 @@ export const POPULAR_SITE_PRESETS: SitePreset[] = [
     label: "ChatGPT",
     icon: "CG",
     svgIcon: "openai-chatgpt",
+    monochrome: true,
   },
   { host: "claude.ai", label: "Claude", icon: "CL", svgIcon: "claude" },
   {
@@ -255,6 +270,7 @@ function typographyRules(typography: TypographySettings): string[] {
 }
 
 export const FONT_STYLE_ID = "styleshift-font";
+export const GLOBAL_CSS_STYLE_ID = "styleshift-global-css";
 export const CSS_STYLE_ID = "styleshift-css";
 export const CUSTOM_FONTS_STYLE_ID = "styleshift-custom-fonts";
 
@@ -597,6 +613,14 @@ export function ensureStyle(
     // Only relocate rule sheets: moving a sheet re-inserts it, which resets
     // any @font-face loads it declares (see the note above), and the font
     // sheets do not need the position because their rules are !important.
+    //
+    // Guarded by parentNode !== head so this is a one-time move, not a
+    // per-call DOM mutation: applySettings runs on every reapply (SPA nav,
+    // focus, MutationObserver), and that observer watches for exactly this
+    // kind of style-element move. An unconditional append() here would fire
+    // the observer, which reschedules a reapply, which appends again -
+    // forever. See the ordering fixup in applySettings for the one other
+    // place two of these elements' relative order needs correcting.
     if (
       relocateToHead &&
       document.head &&
@@ -617,11 +641,16 @@ export function applySettings(
   settings: StyleShiftSettings,
   customFontNames: string[] = [],
   typography: TypographySettings = DEFAULT_TYPOGRAPHY,
+  globalCSS = "",
 ): void {
   ensureStyle(
     FONT_STYLE_ID,
     fontStyleText(settings, customFontNames, typography),
   );
+  // Global CSS is independently toggleable from the per-host stylesheet, so
+  // it gets its own element - and is emitted before it, so a site-specific
+  // rule at equal specificity wins the cascade over the global one.
+  ensureStyle(GLOBAL_CSS_STYLE_ID, globalCSS, true);
   // `cssEnabled !== false` rather than a truthiness test: settings stored
   // before the per-host CSS toggle existed have no such key, and those must
   // keep applying their CSS.
@@ -630,10 +659,34 @@ export function applySettings(
     settings.cssEnabled !== false ? settings.customCSS : "",
     true,
   );
+
+  // ensureStyle only moves an element to the end of <head> the first time it
+  // gets there (see its comment) - a no-op guard that keeps applySettings
+  // from becoming a DOM mutation, and therefore a MutationObserver trigger,
+  // on every reapply. That guard means the *first* time the per-host element
+  // already exists and the global element is created after it, the global
+  // one lands after the per-host one in the DOM even though this function
+  // just emitted it first. Detect and correct exactly that one case; once
+  // fixed it stays fixed; no correction needed when either element is absent
+  // or already in the right order.
+  const globalEl = document.getElementById(GLOBAL_CSS_STYLE_ID);
+  const perHostEl = document.getElementById(CSS_STYLE_ID);
+  if (
+    globalEl &&
+    perHostEl &&
+    document.head &&
+    !(
+      globalEl.compareDocumentPosition(perHostEl) &
+      Node.DOCUMENT_POSITION_FOLLOWING
+    )
+  ) {
+    document.head.append(perHostEl);
+  }
 }
 
 export function removeInjectedStyles(): void {
   document.getElementById(FONT_STYLE_ID)?.remove();
+  document.getElementById(GLOBAL_CSS_STYLE_ID)?.remove();
   document.getElementById(CSS_STYLE_ID)?.remove();
   document.getElementById(CUSTOM_FONTS_STYLE_ID)?.remove();
 }

@@ -4,6 +4,7 @@ import { DEFAULT_MONO_FONT } from "./builtin-fonts";
 import {
   AUTO_ENABLE_ALL_SITES_KEY,
   DEFAULT_SETTINGS,
+  GLOBAL_CSS_KEY,
   GLOBAL_ENABLED_KEY,
   GLOBAL_FONT_STACK_KEY,
   GLOBAL_MONO_FONT_STACK_KEY,
@@ -52,6 +53,18 @@ export async function updateGlobalMonoFontStack(
   fontStack: string[],
 ): Promise<void> {
   await chrome.storage.local.set({ [GLOBAL_MONO_FONT_STACK_KEY]: fontStack });
+}
+
+export async function readGlobalCSS(): Promise<string> {
+  const stored = (await chrome.storage.local.get(GLOBAL_CSS_KEY)) as Record<
+    string,
+    string | undefined
+  >;
+  return stored[GLOBAL_CSS_KEY] ?? "";
+}
+
+export async function updateGlobalCSS(css: string): Promise<void> {
+  await chrome.storage.local.set({ [GLOBAL_CSS_KEY]: css });
 }
 
 export async function readAutoEnableAllSites(): Promise<boolean> {

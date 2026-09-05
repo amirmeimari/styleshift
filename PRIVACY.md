@@ -21,16 +21,10 @@ The extension stores:
 
 ## Network requests
 
-StyleShift does not fetch fonts, stylesheets, or configuration from any remote
-server. Every font it can apply is either bundled with the extension or one you
-uploaded yourself, and both are injected from local data — styling a page never
-requires a network request.
-
-The one exception is cosmetic: the site shortcut grid in the popup loads its
-brand icons from the public CDN `cdn.jsdelivr.net`. This request contains no
-information about you, your settings, or the pages you visit — it is a plain
-request for a static icon file, and it happens only while the popup is open. If
-an icon fails to load, StyleShift falls back to a text label.
+StyleShift makes no network requests at all. Every font it can apply is either
+bundled with the extension or one you uploaded yourself, and both are injected
+from local data. The site shortcut grid's brand icons are bundled with the
+extension too, not loaded from a CDN.
 
 StyleShift does **not**:
 

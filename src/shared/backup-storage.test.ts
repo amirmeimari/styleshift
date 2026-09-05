@@ -13,7 +13,7 @@ import {
   type StyleShiftSettings,
 } from "./style-core";
 import { updateCustomFont } from "./custom-fonts";
-import { updateHostSettings } from "./storage";
+import { updateGlobalCSS, updateHostSettings } from "./storage";
 import { stubChrome } from "./test-chrome";
 
 const store: Record<string, unknown> = {};
@@ -60,6 +60,19 @@ describe("collectBackup", () => {
   });
 });
 
+describe("collectBackup - global CSS", () => {
+  it("collects the current global CSS", async () => {
+    await updateGlobalCSS("html { color: red; }");
+    const backup = await collectBackup(false);
+    expect(backup.globals.globalCSS).toBe("html { color: red; }");
+  });
+
+  it("omits globalCSS entirely when there is none set, not an empty string", async () => {
+    const backup = await collectBackup(false);
+    expect(backup.globals.globalCSS).toBeUndefined();
+  });
+});
+
 describe("applyBackup - merge mode", () => {
   it("writes the backup's sites without touching an untouched host record", async () => {
     await updateHostSettings("untouched.com", SITE);
@@ -76,6 +89,23 @@ describe("applyBackup - merge mode", () => {
     >;
     expect(stored["github.com"]).toEqual(SITE);
     expect(stored["untouched.com"]).toEqual(SITE);
+  });
+
+  it("leaves existing global CSS untouched when the backup has none set", async () => {
+    await updateGlobalCSS("html { color: red; }");
+
+    // collectBackup omits globalCSS entirely when it is empty, exactly like
+    // this - so a merge import from a profile that never touched global CSS
+    // must not wipe the importing profile's.
+    const backup = buildBackup({ globals: {}, sites: {} });
+    expect(backup.globals.globalCSS).toBeUndefined();
+    await applyBackup(backup, "merge");
+
+    const stored = (await chrome.storage.local.get(null)) as Record<
+      string,
+      unknown
+    >;
+    expect(stored["__styleshift_global_css__"]).toBe("html { color: red; }");
   });
 
   it("only writes globals present in the backup", async () => {
@@ -212,6 +242,19 @@ describe("applyBackup - replace mode", () => {
       unknown
     >;
     expect(Object.keys(index)).toEqual(["new-font"]);
+  });
+
+  it("resets global CSS back to empty when the backup carries an empty string", async () => {
+    await updateGlobalCSS("html { color: red; }");
+
+    const backup = buildBackup({ globals: { globalCSS: "" }, sites: {} });
+    await applyBackup(backup, "replace");
+
+    const stored = (await chrome.storage.local.get(null)) as Record<
+      string,
+      unknown
+    >;
+    expect(stored["__styleshift_global_css__"]).toBe("");
   });
 
   it("resets a global absent from the backup back to its default", async () => {

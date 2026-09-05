@@ -9,6 +9,8 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 import {
   CSS_STYLE_ID,
   FONT_STYLE_ID,
+  GLOBAL_CSS_KEY,
+  GLOBAL_CSS_STYLE_ID,
   GLOBAL_FONT_STACK_KEY,
   GLOBAL_MONO_FONT_STACK_KEY,
 } from "@/shared/style-core";
@@ -69,6 +71,36 @@ describe("content script apply loop", () => {
 
     expect(styleText(CSS_STYLE_ID)).toContain("#f0f0f0");
     expect(styleText(FONT_STYLE_ID)).toBe(fontBefore);
+  });
+
+  it("applies global CSS ahead of the per-host sheet and reacts to changes", async () => {
+    await chrome.storage.local.set({
+      [GLOBAL_CSS_KEY]: "html { background: black; }",
+    });
+    await settle();
+
+    expect(styleText(GLOBAL_CSS_STYLE_ID)).toContain("background: black");
+    const global = document.getElementById(GLOBAL_CSS_STYLE_ID);
+    const perHost = document.getElementById(CSS_STYLE_ID);
+    expect(
+      global!.compareDocumentPosition(perHost!) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("settles: no further reapply once nothing in storage is changing", async () => {
+    // applySettings must be a DOM no-op when nothing changed - otherwise the
+    // MutationObserver that watches for a removed injected style (to recover
+    // from a page stripping it) sees its own relocation of that style as a
+    // removal and reschedules forever. A real regression here would not fail
+    // the assertions above (they check content after one fixed settle delay)
+    // - it only shows up as reapply calls that never stop.
+    await settle();
+    const getSpy = vi.spyOn(chrome.storage.local, "get");
+    const callsBefore = getSpy.mock.calls.length;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    expect(getSpy.mock.calls.length).toBe(callsBefore);
+    getSpy.mockRestore();
   });
 });
 

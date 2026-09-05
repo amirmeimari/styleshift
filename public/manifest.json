@@ -15,8 +15,14 @@
   "optional_permissions": ["fontSettings"],
   "host_permissions": ["<all_urls>"],
   "options_page": "options.html",
+  "commands": {
+    "toggle-font": {
+      "suggested_key": { "default": "Alt+Shift+S" },
+      "description": "Toggle StyleShift fonts for the current site"
+    }
+  },
   "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' data: https://cdn.jsdelivr.net;"
+    "extension_pages": "script-src 'self'; object-src 'self'; img-src 'self' data:;"
   },
   "web_accessible_resources": [
     {

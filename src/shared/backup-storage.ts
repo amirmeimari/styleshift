@@ -10,6 +10,7 @@ import {
 } from "./backup";
 import {
   AUTO_ENABLE_ALL_SITES_KEY,
+  GLOBAL_CSS_KEY,
   GLOBAL_ENABLED_KEY,
   GLOBAL_FONT_STACK_KEY,
   GLOBAL_MONO_FONT_STACK_KEY,
@@ -20,6 +21,7 @@ import {
 import { readCustomFonts, updateCustomFont } from "./custom-fonts";
 import {
   readAutoEnableAllSites,
+  readGlobalCSS,
   readGlobalEnabled,
   readGlobalFontStack,
   readGlobalMonoFontStack,
@@ -38,6 +40,7 @@ export async function collectBackup(
     fontStack,
     monoFontStack,
     typography,
+    globalCSS,
     customFonts,
   ] = await Promise.all([
     chrome.storage.local.get(null) as Promise<Record<string, unknown>>,
@@ -46,6 +49,7 @@ export async function collectBackup(
     readGlobalFontStack(),
     readGlobalMonoFontStack(),
     readTypography(),
+    readGlobalCSS(),
     includeFonts ? readCustomFonts() : Promise.resolve({}),
   ]);
 
@@ -63,6 +67,15 @@ export async function collectBackup(
     monoFontStack,
     typography,
   };
+
+  // Unlike fontStack/typography (recoverable preferences safe to always
+  // round-trip), global CSS is user-authored content - only include it when
+  // non-empty, so a merge-mode import from a profile that never set any
+  // doesn't silently wipe the importing profile's global CSS. GLOBAL_KEY_MAP
+  // writes any field present here, in every mode.
+  if (globalCSS) {
+    globals.globalCSS = globalCSS;
+  }
 
   if (isLocaleCode(all[LOCALE_STORAGE_KEY])) {
     globals.locale = all[LOCALE_STORAGE_KEY];
@@ -100,6 +113,7 @@ const GLOBAL_KEY_MAP: Record<keyof StyleShiftBackupGlobals, string> = {
   typography: TYPOGRAPHY_KEY,
   locale: LOCALE_STORAGE_KEY,
   theme: THEME_STORAGE_KEY,
+  globalCSS: GLOBAL_CSS_KEY,
 };
 
 // Merge overwrites only the keys present in the backup; hosts/globals absent

@@ -12,6 +12,8 @@ import {
   CSS_STYLE_ID,
   EDITABLE_SELECTOR,
   FONT_STYLE_ID,
+  GLOBAL_CSS_KEY,
+  GLOBAL_CSS_STYLE_ID,
   GLOBAL_ENABLED_KEY,
   GLOBAL_FONT_STACK_KEY,
   GLOBAL_MONO_FONT_STACK_KEY,
@@ -24,6 +26,7 @@ import {
   serializeFontStack,
 } from "@/shared/style-core";
 import {
+  readGlobalCSS,
   readGlobalEnabled,
   readGlobalFontStack,
   readGlobalMonoFontStack,
@@ -84,13 +87,19 @@ async function loadAndApply() {
     return;
   }
 
-  const [settings, globalFontStack, globalMonoFontStack, typography] =
-    await Promise.all([
-      readHostSettings(hostname),
-      readGlobalFontStack(),
-      readGlobalMonoFontStack(),
-      readTypography(),
-    ]);
+  const [
+    settings,
+    globalFontStack,
+    globalMonoFontStack,
+    typography,
+    globalCSS,
+  ] = await Promise.all([
+    readHostSettings(hostname),
+    readGlobalFontStack(),
+    readGlobalMonoFontStack(),
+    readTypography(),
+    readGlobalCSS(),
+  ]);
 
   if (generation !== applyGeneration) {
     return;
@@ -110,6 +119,7 @@ async function loadAndApply() {
     settings,
     [...BUILTIN_FONT_NAMES, ...customFontNames],
     typography,
+    globalCSS,
   );
 }
 
@@ -126,6 +136,7 @@ function scheduleLoadAndApply(delay = 50) {
 
 const INJECTED_STYLE_IDS = [
   FONT_STYLE_ID,
+  GLOBAL_CSS_STYLE_ID,
   CSS_STYLE_ID,
   CUSTOM_FONTS_STYLE_ID,
   BUILTIN_FONTS_STYLE_ID,
@@ -291,6 +302,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     changes[GLOBAL_FONT_STACK_KEY] ||
     changes[GLOBAL_MONO_FONT_STACK_KEY] ||
     changes[TYPOGRAPHY_KEY] ||
+    changes[GLOBAL_CSS_KEY] ||
     hostSettingsCandidates(hostname).some((key) => changes[key]);
 
   if (settingsChanged) {

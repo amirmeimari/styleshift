@@ -33,6 +33,7 @@ export type StyleShiftBackupGlobals = {
   typography?: TypographySettings;
   locale?: LocaleCode;
   theme?: ThemePref;
+  globalCSS?: string;
 };
 
 export type StyleShiftBackup = {
@@ -259,6 +260,14 @@ function sanitizeGlobals(raw: unknown): {
     globals.theme = source.theme;
   } else if (source.theme !== undefined) {
     warnings.push("Saved theme was invalid and was dropped.");
+  }
+  if (typeof source.globalCSS === "string") {
+    globals.globalCSS =
+      source.globalCSS.length > MAX_CSS_LENGTH
+        ? source.globalCSS.slice(0, MAX_CSS_LENGTH)
+        : source.globalCSS;
+  } else if (source.globalCSS !== undefined) {
+    warnings.push("Global CSS was invalid and was dropped.");
   }
 
   return { globals, warnings };

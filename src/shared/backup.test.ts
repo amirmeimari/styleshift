@@ -181,6 +181,32 @@ describe("parseBackup", () => {
     expect(result.backup.globals.typography?.lineHeight).toBe(3);
   });
 
+  it("round-trips global CSS and truncates it like customCSS when oversized", () => {
+    const backup = makeBackup({
+      globals: { globalCSS: "html { color: red; }" },
+    });
+    const result = parseBackup(serializeBackup(backup));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.backup.globals.globalCSS).toBe("html { color: red; }");
+
+    const huge = makeBackup({ globals: { globalCSS: "a".repeat(200_000) } });
+    const hugeResult = parseBackup(serializeBackup(huge));
+    expect(hugeResult.ok).toBe(true);
+    if (!hugeResult.ok) return;
+    expect(hugeResult.backup.globals.globalCSS?.length).toBe(100_000);
+  });
+
+  it("drops a non-string global CSS field with a warning", () => {
+    const raw = JSON.parse(serializeBackup(makeBackup()));
+    raw.globals.globalCSS = 12345;
+    const result = parseBackup(JSON.stringify(raw));
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.backup.globals.globalCSS).toBeUndefined();
+    expect(result.warnings.some((w) => w.includes("Global CSS"))).toBe(true);
+  });
+
   it("drops an oversized or non-base64 font entry without failing the rest of the import", () => {
     const backup = makeBackup({
       fonts: [

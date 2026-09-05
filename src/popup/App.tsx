@@ -965,9 +965,11 @@ export function App() {
                                     </span>
                                   ) : (
                                     <img
-                                      src={`https://cdn.jsdelivr.net/gh/glincker/thesvg@main/public/icons/${preset.svgIcon}/default.svg`}
+                                      src={chrome.runtime.getURL(
+                                        `icons/presets/${preset.svgIcon}.svg`,
+                                      )}
                                       alt=""
-                                      className="h-6 w-6 object-contain"
+                                      className={`h-6 w-6 object-contain${preset.monochrome ? " dark:invert" : ""}`}
                                       onError={() =>
                                         setFailedPresetIcons((previous) => ({
                                           ...previous,

@@ -6,6 +6,7 @@ import {
   DEFAULT_TYPOGRAPHY,
   ensureStyle,
   FONT_STYLE_ID,
+  GLOBAL_CSS_STYLE_ID,
   fontStyleText,
   formatFontFamily,
   generateCustomFontFace,
@@ -389,6 +390,51 @@ describe("applySettings CSS gating", () => {
 
     applySettings({ ...base, cssEnabled: false });
     expect(injectedCss()).toBeNull();
+  });
+});
+
+describe("applySettings global CSS", () => {
+  afterEach(() => {
+    document.getElementById(CSS_STYLE_ID)?.remove();
+    document.getElementById(GLOBAL_CSS_STYLE_ID)?.remove();
+  });
+
+  const base: StyleShiftSettings = {
+    fontFamily: "",
+    monoFontFamily: "",
+    fontEnabled: false,
+    cssEnabled: true,
+    customCSS: "body { color: red; }",
+    includeSubdomains: true,
+  };
+
+  it("emits nothing when omitted, matching pre-existing behavior exactly", () => {
+    applySettings(base);
+    expect(document.getElementById(GLOBAL_CSS_STYLE_ID)).toBeNull();
+  });
+
+  it("injects global CSS into its own element, independent of cssEnabled", () => {
+    applySettings(
+      { ...base, cssEnabled: false },
+      [],
+      DEFAULT_TYPOGRAPHY,
+      "html { background: black; }",
+    );
+    expect(document.getElementById(GLOBAL_CSS_STYLE_ID)?.textContent).toBe(
+      "html { background: black; }",
+    );
+  });
+
+  it("orders the global sheet before the per-host sheet, so per-host rules win ties", () => {
+    applySettings(base, [], DEFAULT_TYPOGRAPHY, "html { background: black; }");
+    const global = document.getElementById(GLOBAL_CSS_STYLE_ID);
+    const perHost = document.getElementById(CSS_STYLE_ID);
+    expect(global).not.toBeNull();
+    expect(perHost).not.toBeNull();
+    expect(
+      global!.compareDocumentPosition(perHost!) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 });
 
