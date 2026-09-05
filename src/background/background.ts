@@ -1,10 +1,11 @@
 import {
+  DEFAULT_SETTINGS,
   TYPOGRAPHY_KEY,
   isInjectableUrl,
   normalizeTypography,
 } from "@/shared/style-core";
 import { applyMinimumFontSize } from "@/shared/min-font-size";
-import { readHostSettings, updateHostSettings } from "@/shared/storage";
+import { resolveHostSettings, updateHostSettings } from "@/shared/storage";
 import { requestReinject } from "@/shared/tabs";
 import type { ReinjectMessage } from "@/shared/messages";
 
@@ -61,11 +62,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 // Alt+Shift+S (see manifest "commands") toggles fonts for the active tab's
 // site without opening the popup - the same operation as the popup's own
 // font on/off switch, just reachable without a click.
-chrome.commands.onCommand.addListener(async (command) => {
-  if (command !== "toggle-font") {
-    return;
-  }
-
+async function handleToggleFontCommand(): Promise<void> {
   // The service worker has no notion of a "current" window - lastFocusedWindow
   // is the form extensions use here instead of the currentWindow that popup/
   // options pages (which do run in a window) use in tabs.ts's getActiveTab.
@@ -78,21 +75,32 @@ chrome.commands.onCommand.addListener(async (command) => {
     return;
   }
 
-  let hostname: string;
-  try {
-    hostname = new URL(tab.url!).hostname;
-  } catch {
-    return;
-  }
+  const hostname = new URL(tab.url!).hostname;
 
-  if (!hostname) {
-    return;
-  }
-
-  const settings = await readHostSettings(hostname);
+  // Same base-settings rule as the popup's saveAndInject: when hostname has
+  // no own record (it's inheriting from an ancestor, or has nothing), base on
+  // DEFAULT_SETTINGS rather than the resolved ancestor settings - otherwise
+  // toggling the shortcut on a subdomain would freeze a permanent copy of the
+  // ancestor's customCSS/fontFamily onto it.
+  const resolved = await resolveHostSettings(hostname);
+  const base =
+    resolved.sourceHost === hostname
+      ? resolved.settings
+      : { ...DEFAULT_SETTINGS, fontEnabled: resolved.settings.fontEnabled };
   await updateHostSettings(hostname, {
-    ...settings,
-    fontEnabled: !settings.fontEnabled,
+    ...base,
+    fontEnabled: !base.fontEnabled,
   });
   await requestReinject(tab.id);
+}
+
+chrome.commands.onCommand.addListener((command) => {
+  if (command !== "toggle-font") {
+    return;
+  }
+
+  handleToggleFontCommand().catch(() => {
+    // Storage/tab access can fail (context invalidated, quota, policy) - the
+    // shortcut just silently no-ops rather than surfacing to the user.
+  });
 });
