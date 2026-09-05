@@ -8,16 +8,16 @@ const badgeVariants = cva(
     variants: {
       variant: {
         default:
-          "border-[var(--fabric-denim-border)] bg-[var(--fabric-denim)] text-[#F8F3EA] shadow-[inset_0_1px_0_rgba(255,255,255,.15)]",
+          "border-[var(--fabric-denim-border)] bg-[var(--fabric-denim)] text-[var(--fabric-on-denim)] shadow-[inset_0_1px_0_rgba(var(--fabric-sheen-rgb),.15)]",
         secondary:
-          "border-border bg-secondary text-secondary-foreground shadow-[inset_0_1px_0_rgba(255,255,255,.3)]",
+          "border-border bg-secondary text-secondary-foreground shadow-[inset_0_1px_0_rgba(var(--fabric-sheen-rgb),.3)]",
         destructive:
-          "border-[var(--fabric-terracotta-border)] bg-[var(--fabric-terracotta)] text-[#FFF6F2] shadow-[inset_0_1px_0_rgba(255,255,255,.14)]",
+          "border-[var(--fabric-terracotta-border)] bg-[var(--fabric-terracotta)] text-[var(--fabric-on-terracotta)] shadow-[inset_0_1px_0_rgba(var(--fabric-sheen-rgb),.14)]",
         olive:
-          "border-[var(--fabric-olive-border)] bg-[var(--fabric-olive)] text-[#F5F1E8] shadow-[inset_0_1px_0_rgba(255,255,255,.12)]",
+          "border-[var(--fabric-olive-border)] bg-[var(--fabric-olive)] text-[var(--fabric-on-olive)] shadow-[inset_0_1px_0_rgba(var(--fabric-sheen-rgb),.12)]",
         mustard:
-          "border-[var(--fabric-mustard-border)] bg-[var(--fabric-mustard)] text-[#3E2E16] shadow-[inset_0_1px_0_rgba(255,255,255,.2)]",
-        info: "border-[#2c456e] bg-[var(--fabric-blue-thread)] text-[#F8F3EA] shadow-[inset_0_1px_0_rgba(255,255,255,.14)]",
+          "border-[var(--fabric-mustard-border)] bg-[var(--fabric-mustard)] text-[var(--fabric-on-mustard)] shadow-[inset_0_1px_0_rgba(var(--fabric-sheen-rgb),.2)]",
+        info: "border-[var(--fabric-blue-thread-border)] bg-[var(--fabric-blue-thread)] text-[var(--fabric-on-denim)] shadow-[inset_0_1px_0_rgba(var(--fabric-sheen-rgb),.14)]",
         outline: "text-foreground border-border",
       },
     },

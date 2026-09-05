@@ -6,9 +6,12 @@ import {
   Copy,
   FileCode2,
   Info,
+  Moon,
   RotateCcw,
   Save,
   Settings,
+  Sun,
+  SunMoon,
   Trash2,
   Type,
   Upload,
@@ -38,6 +41,8 @@ import {
 } from "@/components/ui/command";
 import { Label } from "@/components/ui/label";
 import { LOCALES } from "@/shared/i18n/locales";
+import type { ThemePref } from "@/shared/theme";
+import { useTheme } from "@/shared/theme-provider";
 import {
   Popover,
   PopoverContent,
@@ -91,8 +96,19 @@ const TABS: { id: TabId; icon: typeof Type; labelKey: string }[] = [
 // Matches the preset grid's `grid-cols-9` below.
 const PRESET_COLUMN_COUNT = 9;
 
+const THEME_OPTIONS: {
+  value: ThemePref;
+  icon: typeof Sun;
+  labelKey: string;
+}[] = [
+  { value: "light", icon: Sun, labelKey: "settings.themeLight" },
+  { value: "dark", icon: Moon, labelKey: "settings.themeDark" },
+  { value: "system", icon: SunMoon, labelKey: "settings.themeSystem" },
+];
+
 export function App() {
   const { t, dir } = useI18n();
+  const { theme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<TabId>("fonts");
   const tabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
   const [hostname, setHostname] = useState("");
@@ -532,7 +548,7 @@ export function App() {
                       "relative flex items-center justify-center gap-1.5 px-3 py-[11px] text-xs font-semibold border border-border rounded-t-lg cursor-pointer transition-all duration-150",
                       isActive
                         ? "bg-[var(--fabric-linen)] text-foreground border-b-[var(--fabric-linen)] shadow-[inset_0_2px_0_var(--fabric-denim)] z-20"
-                        : "bg-[#D3BE9F] text-[#7a6a58] shadow-[inset_0_-4px_8px_rgba(68,42,22,.12)] hover:text-foreground",
+                        : "bg-[var(--fabric-tab-inactive)] text-[var(--fabric-tab-inactive-fg)] shadow-[inset_0_-4px_8px_rgba(var(--fabric-shadow-rgb),.12)] hover:text-foreground",
                     ].join(" ")}
                     onClick={() => setActiveTab(tab.id)}
                   >
@@ -547,7 +563,7 @@ export function App() {
               role="tabpanel"
               aria-labelledby={`tab-${activeTab}`}
               tabIndex={0}
-              className="relative rounded-lg border border-border bg-[#F5EDE0] p-3 shadow-fabric fabric-weave fabric-stitch"
+              className="relative rounded-lg border border-border bg-[var(--fabric-panel)] p-3 shadow-fabric fabric-weave fabric-stitch"
             >
               {activeTab === "fonts" && (
                 <>
@@ -965,7 +981,7 @@ export function App() {
                       {BUILTIN_FONTS.map((font) => (
                         <span
                           key={font.name}
-                          className="relative rounded-full border border-[var(--fabric-stitch)] bg-[var(--fabric-linen)] px-2.5 py-0.5 text-xs font-medium shadow-[inset_0_1px_0_rgba(255,255,255,.3)] fabric-stitch-pill"
+                          className="relative rounded-full border border-[var(--fabric-stitch)] bg-[var(--fabric-linen)] px-2.5 py-0.5 text-xs font-medium shadow-[inset_0_1px_0_rgba(var(--fabric-sheen-rgb),.3)] fabric-stitch-pill"
                         >
                           {font.name}
                         </span>
@@ -1109,6 +1125,38 @@ export function App() {
                       checked={autoEnableAllSites}
                       onCheckedChange={handleAutoEnableToggle}
                     />
+                  </div>
+
+                  <Separator />
+
+                  <div>
+                    <Label className="text-sm font-semibold">
+                      {t("settings.theme")}
+                    </Label>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {t("settings.themeHelp")}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {THEME_OPTIONS.map((option) => {
+                        const Icon = option.icon;
+                        return (
+                          <Button
+                            key={option.value}
+                            type="button"
+                            variant={
+                              option.value === theme ? "default" : "outline"
+                            }
+                            size="sm"
+                            onClick={() => setTheme(option.value)}
+                            className="gap-1.5 h-7 text-xs"
+                            aria-pressed={option.value === theme}
+                          >
+                            <Icon className="h-3 w-3" />
+                            {t(option.labelKey)}
+                          </Button>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   <Separator />

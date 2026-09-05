@@ -50,6 +50,8 @@
 
 @layer base {
   :root {
+    color-scheme: light dark;
+
     --background: 34 38% 87%;
     --foreground: 24 25% 15%;
     --card: 33 30% 81%;
@@ -74,6 +76,9 @@
     --fabric-stitch: #a38362;
     --fabric-canvas: #efe3cf;
     --fabric-linen: #e4d3bb;
+    --fabric-panel: #f5ede0;
+    --fabric-tab-inactive: #d3be9f;
+    --fabric-tab-inactive-fg: #7a6a58;
 
     --fabric-denim: #2d4263;
     --fabric-denim-border: #1d2f4a;
@@ -87,7 +92,88 @@
     --fabric-leather-border: #4f3522;
     --fabric-red-thread: #a04a42;
     --fabric-blue-thread: #3d5b8b;
+    --fabric-blue-thread-border: #2c456e;
     --fabric-green-thread: #5c7d58;
+
+    /* Text sitting on a saturated accent fill - same role in both themes. */
+    --fabric-on-denim: #f8f3ea;
+    --fabric-on-terracotta: #fff6f2;
+    --fabric-on-olive: #f5f1e8;
+    --fabric-on-mustard: #3e2e16;
+    --fabric-on-leather: #f8f2e8;
+
+    /* Shared rgb triplets behind the many `rgba(…, <alpha>)` shadows and
+       highlights scattered across components - one place to repoint the hue
+       per theme while every call site keeps its own alpha. */
+    --fabric-shadow-rgb: 68, 42, 22;
+    --fabric-sheen-rgb: 255, 255, 255;
+    --fabric-press-rgb: 0, 0, 0;
+
+    --fabric-weave-warp: rgba(120, 90, 55, 0.06);
+    --fabric-weave-weft: rgba(255, 250, 240, 0.1);
+  }
+
+  .dark {
+    color-scheme: dark;
+
+    --background: 27 12% 10%;
+    --foreground: 36 26% 88%;
+    --card: 26 11% 15%;
+    --card-foreground: 36 26% 88%;
+    --popover: 26 12% 14%;
+    --popover-foreground: 36 26% 88%;
+    --primary: 215 40% 62%;
+    --primary-foreground: 24 25% 12%;
+    --secondary: 26 11% 20%;
+    --secondary-foreground: 36 26% 88%;
+    --muted: 26 8% 26%;
+    --muted-foreground: 30 10% 64%;
+    --accent: 28 12% 30%;
+    --accent-foreground: 36 26% 88%;
+    --destructive: 9 45% 58%;
+    --destructive-foreground: 12 100% 97%;
+    --border: 27 12% 27%;
+    --input: 27 12% 27%;
+    --ring: 215 40% 62%;
+
+    --fabric-stitch: #6f5942;
+    --fabric-canvas: #221d18;
+    --fabric-linen: #2b2520;
+    --fabric-panel: #262019;
+    --fabric-tab-inactive: #3a3128;
+    --fabric-tab-inactive-fg: #9b8b78;
+
+    --fabric-denim: #4a6b9c;
+    --fabric-denim-border: #6d8fc4;
+    --fabric-olive: #8f9463;
+    --fabric-olive-border: #b3b884;
+    --fabric-terracotta: #c47f68;
+    --fabric-terracotta-border: #e0a48c;
+    --fabric-mustard: #d9ae5c;
+    --fabric-mustard-border: #f0c67e;
+    --fabric-leather: #966844;
+    --fabric-leather-border: #bd8a63;
+    --fabric-red-thread: #c06a60;
+    --fabric-blue-thread: #6d8fc4;
+    --fabric-blue-thread-border: #a9c1e6;
+    --fabric-green-thread: #7ba173;
+
+    --fabric-on-denim: #f8f3ea;
+    --fabric-on-terracotta: #fff6f2;
+    --fabric-on-olive: #f5f1e8;
+    --fabric-on-mustard: #2a1e0c;
+    --fabric-on-leather: #f8f2e8;
+
+    /* Ambient shadow turns neutral black on a dark ground - a warm brown
+       shadow would read as a stray light leak rather than depth. The white
+       sheen highlight is left as-is; it still reads as a bevel, just dimmer
+       against the darker ground behind it. */
+    --fabric-shadow-rgb: 0, 0, 0;
+    --fabric-sheen-rgb: 255, 255, 255;
+    --fabric-press-rgb: 0, 0, 0;
+
+    --fabric-weave-warp: rgba(0, 0, 0, 0.22);
+    --fabric-weave-weft: rgba(255, 245, 230, 0.03);
   }
 }
 
@@ -114,6 +200,12 @@
   body.styleshift-popup-page {
     overflow: hidden;
   }
+
+  /* The logo's denim-blue and terracotta letterforms are both dark enough to
+     sink into a dark ground; lift them instead of shipping a second asset. */
+  .dark img[alt="StyleShift"] {
+    filter: brightness(1.8) saturate(1.05);
+  }
 }
 
 @layer utilities {
@@ -121,12 +213,12 @@
     background-image:
       repeating-linear-gradient(
         90deg,
-        rgba(120, 90, 55, 0.06) 0 1px,
+        var(--fabric-weave-warp) 0 1px,
         transparent 1px 4px
       ),
       repeating-linear-gradient(
         0deg,
-        rgba(255, 250, 240, 0.1) 0 1px,
+        var(--fabric-weave-weft) 0 1px,
         transparent 1px 4px
       );
     background-size: 4px 4px;

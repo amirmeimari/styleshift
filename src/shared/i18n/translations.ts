@@ -354,6 +354,41 @@ export const translations: Translations = {
     fa: "این فونت‌ها همراه StyleShift عرضه می‌شوند و همیشه در دسترس‌اند.",
   },
 
+  "settings.theme": {
+    en: "Theme",
+    es: "Tema",
+    ar: "المظهر",
+    zh: "主题",
+    fa: "پوسته",
+  },
+  "settings.themeHelp": {
+    en: "Choose how StyleShift looks, or follow your system setting.",
+    es: "Elige el aspecto de StyleShift, o sigue la configuración de tu sistema.",
+    ar: "اختر مظهر StyleShift، أو اتبع إعداد نظامك.",
+    zh: "选择 StyleShift 的外观，或跟随系统设置。",
+    fa: "ظاهر StyleShift را انتخاب کنید یا از تنظیم سیستم پیروی کنید.",
+  },
+  "settings.themeLight": {
+    en: "Light",
+    es: "Claro",
+    ar: "فاتح",
+    zh: "浅色",
+    fa: "روشن",
+  },
+  "settings.themeDark": {
+    en: "Dark",
+    es: "Oscuro",
+    ar: "داكن",
+    zh: "深色",
+    fa: "تیره",
+  },
+  "settings.themeSystem": {
+    en: "System",
+    es: "Sistema",
+    ar: "النظام",
+    zh: "跟随系统",
+    fa: "سیستم",
+  },
   "settings.language": {
     en: "Language",
     es: "Idioma",

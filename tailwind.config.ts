@@ -2,6 +2,7 @@ import type { Config } from "tailwindcss";
 import tailwindcssAnimate from "tailwindcss-animate";
 
 const config = {
+  darkMode: ["class"],
   content: ["./popup.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
@@ -50,12 +51,11 @@ const config = {
         sm: "calc(var(--radius) - 4px)",
       },
       boxShadow: {
-        fabric: "0 3px 6px rgba(68,42,22,.08), 0 8px 24px rgba(68,42,22,.12)",
-        "fabric-raised":
-          "0 8px 16px rgba(68,42,22,.14), 0 16px 40px rgba(68,42,22,.18)",
-        "fabric-pressed": "inset 0 2px 4px rgba(0,0,0,.18)",
+        fabric:
+          "0 3px 6px rgba(var(--fabric-shadow-rgb),.08), 0 8px 24px rgba(var(--fabric-shadow-rgb),.12)",
+        "fabric-pressed": "inset 0 2px 4px rgba(var(--fabric-press-rgb),.18)",
         "fabric-button":
-          "0 2px 4px rgba(68,42,22,.18), inset 0 1px 0 rgba(255,255,255,.12)",
+          "0 2px 4px rgba(var(--fabric-shadow-rgb),.18), inset 0 1px 0 rgba(var(--fabric-sheen-rgb),.12)",
       },
     },
   },

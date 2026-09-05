@@ -9,15 +9,15 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          "border border-[var(--fabric-denim-border)] bg-[var(--fabric-denim)] text-[#F8F3EA] shadow-fabric-button hover:brightness-110 hover:-translate-y-0.5 hover:shadow-fabric active:shadow-fabric-pressed",
+          "border border-[var(--fabric-denim-border)] bg-[var(--fabric-denim)] text-[var(--fabric-on-denim)] shadow-fabric-button hover:brightness-110 hover:-translate-y-0.5 hover:shadow-fabric active:shadow-fabric-pressed",
         destructive:
-          "border border-[var(--fabric-terracotta-border)] bg-[var(--fabric-terracotta)] text-[#FFF6F2] shadow-fabric-button hover:brightness-108 hover:-translate-y-0.5 hover:shadow-fabric active:shadow-fabric-pressed",
+          "border border-[var(--fabric-terracotta-border)] bg-[var(--fabric-terracotta)] text-[var(--fabric-on-terracotta)] shadow-fabric-button hover:brightness-108 hover:-translate-y-0.5 hover:shadow-fabric active:shadow-fabric-pressed",
         olive:
-          "border border-[var(--fabric-olive-border)] bg-[var(--fabric-olive)] text-[#F5F1E8] shadow-fabric-button hover:brightness-110 hover:-translate-y-0.5 hover:shadow-fabric active:shadow-fabric-pressed",
+          "border border-[var(--fabric-olive-border)] bg-[var(--fabric-olive)] text-[var(--fabric-on-olive)] shadow-fabric-button hover:brightness-110 hover:-translate-y-0.5 hover:shadow-fabric active:shadow-fabric-pressed",
         mustard:
-          "border border-[var(--fabric-mustard-border)] bg-[var(--fabric-mustard)] text-[#3E2E16] font-bold shadow-fabric-button hover:brightness-106 hover:-translate-y-0.5 hover:shadow-fabric active:shadow-fabric-pressed",
+          "border border-[var(--fabric-mustard-border)] bg-[var(--fabric-mustard)] text-[var(--fabric-on-mustard)] font-bold shadow-fabric-button hover:brightness-106 hover:-translate-y-0.5 hover:shadow-fabric active:shadow-fabric-pressed",
         leather:
-          "border border-[var(--fabric-leather-border)] bg-[var(--fabric-leather)] text-[#F8F2E8] shadow-fabric-button hover:brightness-112 hover:-translate-y-0.5 hover:shadow-fabric active:shadow-fabric-pressed",
+          "border border-[var(--fabric-leather-border)] bg-[var(--fabric-leather)] text-[var(--fabric-on-leather)] shadow-fabric-button hover:brightness-112 hover:-translate-y-0.5 hover:shadow-fabric active:shadow-fabric-pressed",
         outline:
           "border border-border bg-[var(--fabric-canvas)] shadow-sm hover:brightness-[.97] hover:-translate-y-0.5 hover:shadow-fabric active:shadow-fabric-pressed fabric-stitch-sm",
         secondary:

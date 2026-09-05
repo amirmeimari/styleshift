@@ -48,6 +48,7 @@ import { lintKeymap, linter } from "@codemirror/lint";
 import { css as cssLanguage } from "@codemirror/lang-css";
 import { cssEditorHighlighting, cssEditorTheme } from "./css-editor-theme";
 import { cssDiagnostics } from "./css-lint";
+import { useTheme } from "@/shared/theme-provider";
 
 type CssEditorProps = {
   value: string;
@@ -59,8 +60,9 @@ type CssEditorProps = {
 };
 
 const editableCompartment = new Compartment();
+const themeCompartment = new Compartment();
 
-function baseExtensions(placeholderText: string): Extension[] {
+function baseExtensions(placeholderText: string, dark: boolean): Extension[] {
   return [
     lineNumbers(),
     // No lintGutter(): its marker column is empty almost all the time and the
@@ -87,7 +89,7 @@ function baseExtensions(placeholderText: string): Extension[] {
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
     linter((view) => cssDiagnostics(view.state.doc.toString()), { delay: 400 }),
     placeholderExtension(placeholderText),
-    cssEditorTheme,
+    themeCompartment.of(cssEditorTheme(dark)),
     EditorView.lineWrapping,
     EditorView.contentAttributes.of({
       spellcheck: "false",
@@ -119,6 +121,7 @@ export function CssEditor({
 }: CssEditorProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
+  const { resolvedTheme } = useTheme();
   // Held in a ref so the update listener never goes stale without having to
   // tear down and rebuild the editor when the callback identity changes.
   const onChangeRef = useRef(onChange);
@@ -138,7 +141,7 @@ export function CssEditor({
       state: EditorState.create({
         doc: value,
         extensions: [
-          ...baseExtensions(placeholder),
+          ...baseExtensions(placeholder, resolvedTheme === "dark"),
           editableCompartment.of([
             EditorView.editable.of(!readOnly),
             EditorState.readOnly.of(readOnly),
@@ -197,6 +200,20 @@ export function CssEditor({
       ]),
     });
   }, [readOnly]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+
+    if (!view) {
+      return;
+    }
+
+    view.dispatch({
+      effects: themeCompartment.reconfigure(
+        cssEditorTheme(resolvedTheme === "dark"),
+      ),
+    });
+  }, [resolvedTheme]);
 
   return (
     <div
