@@ -729,6 +729,20 @@ export const translations: Translations = {
     zh: "已导入 {sites} 个站点。",
     fa: "{sites} سایت درون‌ریزی شد.",
   },
+  "options.importErrorApplyFailed": {
+    en: "Import failed. Nothing may have been saved - check your sites list before trying again.",
+    es: "Error al importar. Es posible que no se haya guardado nada; revisa tu lista de sitios antes de volver a intentarlo.",
+    ar: "فشل الاستيراد. من المحتمل ألا يُحفظ أي شيء - تحقق من قائمة مواقعك قبل إعادة المحاولة.",
+    zh: "导入失败。可能未保存任何内容 - 请在重试前检查你的站点列表。",
+    fa: "درون‌ریزی ناموفق بود. ممکن است چیزی ذخیره نشده باشد - پیش از تلاش دوباره فهرست سایت‌ها را بررسی کنید.",
+  },
+  "options.exportError": {
+    en: "Export failed. Try again.",
+    es: "Error al exportar. Inténtalo de nuevo.",
+    ar: "فشل التصدير. حاول مرة أخرى.",
+    zh: "导出失败，请重试。",
+    fa: "برون‌بری ناموفق بود. دوباره تلاش کنید.",
+  },
   "options.sitesTitle": {
     en: "Customized sites",
     es: "Sitios personalizados",

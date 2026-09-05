@@ -436,8 +436,32 @@ export function getMainDomain(hostname: string): string {
     "gov.uk",
   ];
 
+  // Shared multi-tenant hosting domains: the registrable suffix here isn't a
+  // real boundary between unrelated sites the way a normal eTLD+1 is - two
+  // different users' project pages sit one label below it (my-app.vercel.app,
+  // someone-else.github.io). Treated the same as a two-part TLD so the main
+  // domain requires one more label, keeping unrelated tenants from resolving
+  // to the same settings-inheritance root.
+  const sharedHostingSuffixes = [
+    "github.io",
+    "gitlab.io",
+    "vercel.app",
+    "netlify.app",
+    "pages.dev",
+    "herokuapp.com",
+    "web.app",
+    "firebaseapp.com",
+    "appspot.com",
+    "blogspot.com",
+    "glitch.me",
+    "surge.sh",
+  ];
+
   const lastTwo = parts.slice(-2).join(".");
-  if (twoPartTLDs.includes(lastTwo)) {
+  if (
+    twoPartTLDs.includes(lastTwo) ||
+    sharedHostingSuffixes.includes(lastTwo)
+  ) {
     return parts.slice(-3).join(".");
   }
 

@@ -152,6 +152,21 @@ describe("hostSettingsCandidates", () => {
     ]);
   });
 
+  it("never treats a shared multi-tenant hosting domain as a valid inheritance root", () => {
+    // Two unrelated tenants' project pages both sit one label below
+    // github.io - the bare domain must not become a shared candidate.
+    expect(hostSettingsCandidates("victim-project.github.io")).toEqual([
+      "victim-project.github.io",
+    ]);
+    expect(hostSettingsCandidates("my-app.vercel.app")).toEqual([
+      "my-app.vercel.app",
+    ]);
+    expect(hostSettingsCandidates("a.b.github.io")).toEqual([
+      "a.b.github.io",
+      "b.github.io",
+    ]);
+  });
+
   it("returns just the host for a bare domain", () => {
     expect(hostSettingsCandidates("github.com")).toEqual(["github.com"]);
   });

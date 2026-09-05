@@ -86,6 +86,7 @@ export function OptionsApp() {
 
   const [exportIncludeFonts, setExportIncludeFonts] = useState(false);
   const [exportStatus, setExportStatus] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
@@ -157,18 +158,23 @@ export function OptionsApp() {
   }
 
   async function handleExport() {
-    const backup = await collectBackup(exportIncludeFonts);
-    const json = serializeBackup(backup);
-    const blob = new Blob([json], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = backupFilename(new Date());
-    a.click();
-    // Delayed rather than immediate: revoking synchronously can race the
-    // browser's own read of the object URL for the download.
-    setTimeout(() => URL.revokeObjectURL(url), 30_000);
-    setExportStatus(formatBytes(blob.size));
+    setExportError(null);
+    try {
+      const backup = await collectBackup(exportIncludeFonts);
+      const json = serializeBackup(backup);
+      const blob = new Blob([json], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = backupFilename(new Date());
+      a.click();
+      // Delayed rather than immediate: revoking synchronously can race the
+      // browser's own read of the object URL for the download.
+      setTimeout(() => URL.revokeObjectURL(url), 30_000);
+      setExportStatus(formatBytes(blob.size));
+    } catch {
+      setExportError(t("options.exportError"));
+    }
   }
 
   async function handleFileChosen(event: ChangeEvent<HTMLInputElement>) {
@@ -204,17 +210,30 @@ export function OptionsApp() {
     if (!importPreview) {
       return;
     }
-    const report = await applyBackup(importPreview.backup, importMode);
-    setImportPreview(null);
-    setImportSuccess(
-      t("options.importSuccess", { sites: report.sitesWritten }),
-    );
-    const [storedTypography, siteRows] = await Promise.all([
-      readTypography(),
-      loadSiteRows(),
-    ]);
-    setTypography(storedTypography);
-    setSites(siteRows);
+    try {
+      const report = await applyBackup(importPreview.backup, importMode);
+      setImportPreview(null);
+      setImportSuccess(
+        t("options.importSuccess", { sites: report.sitesWritten }),
+      );
+      const [storedTypography, siteRows, storedGlobalCSS] = await Promise.all([
+        readTypography(),
+        loadSiteRows(),
+        readGlobalCSS(),
+      ]);
+      setTypography(storedTypography);
+      setSites(siteRows);
+      setGlobalCSS(storedGlobalCSS);
+      setGlobalCSSDraft(storedGlobalCSS);
+      // The import may have changed or removed the host currently open in
+      // the CSS editor below - re-resolve it so a stale draft can't be
+      // saved back over what was just imported.
+      if (editingHost) {
+        await openEditor(editingHost);
+      }
+    } catch {
+      setImportError(t("options.importErrorApplyFailed"));
+    }
   }
 
   function handleCancelImport() {
@@ -389,6 +408,11 @@ export function OptionsApp() {
                     </span>
                   )}
                 </div>
+                {exportError && (
+                  <p className="text-xs text-[var(--fabric-terracotta)]">
+                    {exportError}
+                  </p>
+                )}
               </div>
 
               <div className="space-y-2 rounded-md border border-border bg-[var(--fabric-linen)] p-3">
