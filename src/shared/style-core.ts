@@ -668,6 +668,13 @@ export function fontFormatHint(format: string): {
   return FONT_FORMATS[format.trim().toLowerCase()] ?? FONT_FORMATS.woff2;
 }
 
+// Whether `format` (a file extension, not the CSS format() keyword) is one
+// generateCustomFontFace knows how to embed. Used by import validation to
+// reject a font entry outright rather than silently falling back to woff2.
+export function isValidFontFormat(format: string): boolean {
+  return format.trim().toLowerCase() in FONT_FORMATS;
+}
+
 export function generateCustomFontFace(font: CustomFont): string {
   const { format, mimeType } = fontFormatHint(font.format);
   // base64 data is restricted to [A-Za-z0-9+/=]; strip anything else so a

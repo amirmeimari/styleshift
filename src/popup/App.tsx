@@ -4,6 +4,7 @@ import {
   ChevronsUpDown,
   Check,
   Copy,
+  ExternalLink,
   FileCode2,
   Info,
   Moon,
@@ -611,6 +612,20 @@ export function App() {
     } catch (error) {
       console.error(error);
     }
+  }
+
+  // The popup is 480px wide and closes the instant it loses focus, which is
+  // why import's file picker (and any serious editing) has to live on the
+  // options page instead - open it pre-scoped to this host.
+  function handlePopOutEditor() {
+    if (!hostname || typeof chrome === "undefined" || !chrome.tabs) {
+      return;
+    }
+    chrome.tabs.create({
+      url: chrome.runtime.getURL(
+        `options.html?host=${encodeURIComponent(hostname)}`,
+      ),
+    });
   }
 
   const hasChanges = customCSS !== savedCSS;
@@ -1235,6 +1250,18 @@ export function App() {
                         <WandSparkles className="h-3 w-3" />
                         {t("editor.format")}
                       </Button>
+                      {hostname && (
+                        <Button
+                          onClick={handlePopOutEditor}
+                          variant="secondary"
+                          size="sm"
+                          className="gap-1 h-6 text-[10px] px-2"
+                          title={t("options.popOutCss")}
+                          aria-label={t("options.popOutCss")}
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                   {hostname && (
@@ -1444,6 +1471,27 @@ export function App() {
                         </Button>
                       ))}
                     </div>
+                  </div>
+
+                  <Separator />
+
+                  <div>
+                    <Label className="text-sm font-semibold">
+                      {t("settings.manageSites")}
+                    </Label>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {t("settings.manageSitesHelp")}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      className="mt-2 gap-1.5 h-7 text-xs"
+                      onClick={() => chrome.runtime.openOptionsPage()}
+                    >
+                      <ExternalLink className="h-3 w-3" />
+                      {t("settings.manageSites")}
+                    </Button>
                   </div>
                 </section>
               )}
