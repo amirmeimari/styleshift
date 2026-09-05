@@ -210,6 +210,48 @@ export const translations: Translations = {
     zh: "选择一种代码字体",
     fa: "یک فونت کد انتخاب کنید",
   },
+  "popup.typography": {
+    en: "Typography",
+    es: "Tipografía",
+    ar: "الطباعة",
+    zh: "排版",
+    fa: "تایپوگرافی",
+  },
+  "popup.typographyHelp": {
+    en: "Fine-tune line height, letter spacing, and font weight. Applies together with the font family above.",
+    es: "Ajusta el interlineado, el espaciado entre letras y el grosor de fuente. Se aplica junto con la fuente indicada arriba.",
+    ar: "اضبط ارتفاع السطر وتباعد الأحرف ووزن الخط. يُطبَّق مع عائلة الخط أعلاه.",
+    zh: "微调行高、字间距和字重，与上方的字体一起应用。",
+    fa: "ارتفاع خط، فاصلهٔ حروف و ضخامت فونت را تنظیم کنید. همراه با فونت بالا اعمال می‌شود.",
+  },
+  "popup.lineHeight": {
+    en: "Line height",
+    es: "Interlineado",
+    ar: "ارتفاع السطر",
+    zh: "行高",
+    fa: "ارتفاع خط",
+  },
+  "popup.letterSpacing": {
+    en: "Letter spacing",
+    es: "Espaciado entre letras",
+    ar: "تباعد الأحرف",
+    zh: "字间距",
+    fa: "فاصلهٔ حروف",
+  },
+  "popup.fontWeight": {
+    en: "Font weight",
+    es: "Grosor de fuente",
+    ar: "وزن الخط",
+    zh: "字重",
+    fa: "ضخامت فونت",
+  },
+  "popup.typographyDefault": {
+    en: "Default",
+    es: "Predeterminado",
+    ar: "افتراضي",
+    zh: "默认",
+    fa: "پیش‌فرض",
+  },
 
   "availability.bundled": {
     en: "Bundled with StyleShift — always available.",

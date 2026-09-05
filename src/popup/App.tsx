@@ -50,10 +50,16 @@ import {
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-import type { CustomFont, StyleShiftSettings } from "@/shared/styleshift";
+import type {
+  CustomFont,
+  StyleShiftSettings,
+  TypographySettings,
+} from "@/shared/styleshift";
 import {
   DEFAULT_SETTINGS,
+  DEFAULT_TYPOGRAPHY,
   POPULAR_SITE_PRESETS,
+  TYPOGRAPHY_RANGES,
   getActiveTab,
   getHostname,
   getMainDomain,
@@ -65,6 +71,7 @@ import {
   readGlobalFontStack,
   readGlobalMonoFontStack,
   readHostSettings,
+  readTypography,
   requestReinject,
   serializeFontStack,
   updateAutoEnableAllSites,
@@ -72,6 +79,7 @@ import {
   updateGlobalFontStack,
   updateGlobalMonoFontStack,
   updateHostSettings,
+  updateTypography,
 } from "@/shared/styleshift";
 import { formatCSS } from "@/css-editor/format-css";
 // CodeMirror is by far the largest dependency in the popup and only the CSS
@@ -95,6 +103,50 @@ const TABS: { id: TabId; icon: typeof Type; labelKey: string }[] = [
 
 // Matches the preset grid's `grid-cols-9` below.
 const PRESET_COLUMN_COUNT = 9;
+
+type TypographyField = "lineHeight" | "letterSpacing" | "fontWeight";
+
+// Shown on the slider while the field is unset (null), so dragging starts
+// from a sensible neutral position instead of jumping from the range's min.
+const TYPOGRAPHY_FIELD_NEUTRAL: Record<TypographyField, number> = {
+  lineHeight: 1.5,
+  letterSpacing: 0,
+  fontWeight: 400,
+};
+
+const TYPOGRAPHY_CONTROLS: {
+  field: TypographyField;
+  labelKey: string;
+  min: number;
+  max: number;
+  step: number;
+  format: (value: number) => string;
+}[] = [
+  {
+    field: "lineHeight",
+    labelKey: "popup.lineHeight",
+    min: TYPOGRAPHY_RANGES.lineHeight.min,
+    max: TYPOGRAPHY_RANGES.lineHeight.max,
+    step: 0.1,
+    format: (value) => value.toFixed(1),
+  },
+  {
+    field: "letterSpacing",
+    labelKey: "popup.letterSpacing",
+    min: TYPOGRAPHY_RANGES.letterSpacing.min,
+    max: TYPOGRAPHY_RANGES.letterSpacing.max,
+    step: 0.01,
+    format: (value) => `${value.toFixed(2)}em`,
+  },
+  {
+    field: "fontWeight",
+    labelKey: "popup.fontWeight",
+    min: TYPOGRAPHY_RANGES.fontWeight.min,
+    max: TYPOGRAPHY_RANGES.fontWeight.max,
+    step: 100,
+    format: (value) => String(value),
+  },
+];
 
 const THEME_OPTIONS: {
   value: ThemePref;
@@ -136,6 +188,8 @@ export function App() {
   const [savedCSS, setSavedCSS] = useState(DEFAULT_SETTINGS.customCSS);
   const [isSaving, setIsSaving] = useState(false);
   const [autoEnableAllSites, setAutoEnableAllSites] = useState(false);
+  const [typography, setTypography] =
+    useState<TypographySettings>(DEFAULT_TYPOGRAPHY);
   const { locale, setLocale } = useI18n();
   const uploadedFontNames = useMemo(
     () => Object.values(customFonts).map((font) => font.name),
@@ -190,14 +244,21 @@ export function App() {
           return;
         }
 
-        const [settings, enabled, globalFontStack, globalMonoFontStack, fonts] =
-          await Promise.all([
-            readHostSettings(host),
-            readGlobalEnabled(),
-            readGlobalFontStack(),
-            readGlobalMonoFontStack(),
-            readCustomFonts(),
-          ]);
+        const [
+          settings,
+          enabled,
+          globalFontStack,
+          globalMonoFontStack,
+          fonts,
+          storedTypography,
+        ] = await Promise.all([
+          readHostSettings(host),
+          readGlobalEnabled(),
+          readGlobalFontStack(),
+          readGlobalMonoFontStack(),
+          readCustomFonts(),
+          readTypography(),
+        ]);
         const hydratedFontStack =
           globalFontStack.length > 0
             ? globalFontStack
@@ -234,6 +295,7 @@ export function App() {
         setCssEnabled(settings.cssEnabled !== false);
         setCustomCSS(settings.customCSS);
         setSavedCSS(settings.customCSS);
+        setTypography(storedTypography);
       } catch (error) {
         console.error(error);
       }
@@ -403,6 +465,18 @@ export function App() {
         console.error(error);
       }
     }
+  }
+
+  async function persistTypography(
+    field: TypographyField,
+    value: number | null,
+  ) {
+    // Optimistic update - the storage.onChanged listener in content.ts
+    // reapplies the page's styling on its own, so no reinject nudge is
+    // needed here (same pattern as persistFontStack/persistMonoFont).
+    setTypography((previous) => ({ ...previous, [field]: value }));
+    const next = await updateTypography({ [field]: value });
+    setTypography(next);
   }
 
   async function handleAutoEnableToggle(checked: boolean) {
@@ -964,6 +1038,72 @@ export function App() {
                         </PopoverContent>
                       </Popover>
                     </div>
+                  </section>
+
+                  <Separator className="my-2" />
+
+                  <section className="space-y-2.5">
+                    <LabelWithHelp help={t("popup.typographyHelp")}>
+                      {t("popup.typography")}
+                    </LabelWithHelp>
+                    {TYPOGRAPHY_CONTROLS.map((control) => {
+                      const value = typography[control.field];
+                      const disabled = !canApply || !fontEnabled;
+                      const displayValue =
+                        value ?? TYPOGRAPHY_FIELD_NEUTRAL[control.field];
+
+                      return (
+                        <div key={control.field} className="space-y-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <Label
+                              htmlFor={`typography-${control.field}`}
+                              className="text-xs text-muted-foreground"
+                            >
+                              {t(control.labelKey)}
+                            </Label>
+                            <div className="flex items-center gap-1">
+                              <span className="text-[10px] tabular-nums text-muted-foreground">
+                                {value === null
+                                  ? t("popup.typographyDefault")
+                                  : control.format(value)}
+                              </span>
+                              {value !== null && (
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-5 w-5"
+                                  disabled={disabled}
+                                  aria-label={t("common.reset")}
+                                  title={t("common.reset")}
+                                  onClick={() =>
+                                    persistTypography(control.field, null)
+                                  }
+                                >
+                                  <RotateCcw className="h-3 w-3" />
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                          <input
+                            id={`typography-${control.field}`}
+                            type="range"
+                            min={control.min}
+                            max={control.max}
+                            step={control.step}
+                            value={displayValue}
+                            disabled={disabled}
+                            onChange={(event) =>
+                              persistTypography(
+                                control.field,
+                                Number(event.target.value),
+                              )
+                            }
+                            className="w-full accent-[var(--fabric-denim)] disabled:opacity-50"
+                          />
+                        </div>
+                      );
+                    })}
                   </section>
                 </>
               )}

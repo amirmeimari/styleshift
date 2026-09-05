@@ -136,12 +136,124 @@ export const DEFAULT_SETTINGS: StyleShiftSettings = {
   customCSS: "",
 };
 
+export const TYPOGRAPHY_KEY = "__styleshift_typography__";
+
+export type TypographySettings = {
+  /** Unitless line-height multiplier, e.g. 1.6. */
+  lineHeight: number | null;
+  /** Letter spacing in em, e.g. 0.01. */
+  letterSpacing: number | null;
+  /** CSS font-weight, 100-900. */
+  fontWeight: number | null;
+  /**
+   * Minimum font size in px. NOT emitted as CSS - a `max(Npx, 1em)` rule
+   * re-resolves against the parent's already-overridden size once
+   * `!important` wins, collapsing every element in the subtree to exactly
+   * the minimum. Applied instead via chrome.fontSettings (see min-font-size.ts).
+   */
+  minFontSize: number | null;
+};
+
+export const DEFAULT_TYPOGRAPHY: TypographySettings = {
+  lineHeight: null,
+  letterSpacing: null,
+  fontWeight: null,
+  minFontSize: null,
+};
+
+export const TYPOGRAPHY_RANGES = {
+  lineHeight: { min: 1, max: 3 },
+  letterSpacing: { min: -0.05, max: 0.5 },
+  fontWeight: { min: 100, max: 900 },
+  minFontSize: { min: 8, max: 32 },
+} as const;
+
+function clampTypographyField(
+  value: unknown,
+  range: { min: number; max: number },
+  decimals: number,
+): number | null {
+  // Only a genuine finite number is accepted - a numeric string or NaN
+  // degrades to "unset" rather than being coerced, so emitted CSS can never
+  // contain anything but a clamped, finite number.
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return null;
+  }
+
+  const clamped = Math.min(range.max, Math.max(range.min, value));
+  const factor = 10 ** decimals;
+  return Math.round(clamped * factor) / factor;
+}
+
+// The ONLY path a number takes from storage/import/UI into emitted CSS.
+// Clamps out-of-range and non-finite input to null rather than throwing, so a
+// corrupted key or a hand-edited import degrades to "unset", never to broken
+// CSS or a crash.
+export function normalizeTypography(raw: unknown): TypographySettings {
+  const source = (raw && typeof raw === "object" ? raw : {}) as Partial<
+    Record<keyof TypographySettings, unknown>
+  >;
+
+  return {
+    lineHeight: clampTypographyField(
+      source.lineHeight,
+      TYPOGRAPHY_RANGES.lineHeight,
+      2,
+    ),
+    letterSpacing: clampTypographyField(
+      source.letterSpacing,
+      TYPOGRAPHY_RANGES.letterSpacing,
+      3,
+    ),
+    fontWeight: clampTypographyField(
+      source.fontWeight,
+      TYPOGRAPHY_RANGES.fontWeight,
+      0,
+    ),
+    minFontSize: clampTypographyField(
+      source.minFontSize,
+      TYPOGRAPHY_RANGES.minFontSize,
+      0,
+    ),
+  };
+}
+
+// line-height/letter-spacing are grouped into one rule; font-weight is
+// separate because it targets a narrower selector (headings excluded).
+function typographyRules(typography: TypographySettings): string[] {
+  const rules: string[] = [];
+  const proseDeclarations: string[] = [];
+
+  if (typography.lineHeight !== null) {
+    proseDeclarations.push(`line-height: ${typography.lineHeight} !important;`);
+  }
+
+  if (typography.letterSpacing !== null) {
+    proseDeclarations.push(
+      `letter-spacing: ${typography.letterSpacing}em !important;`,
+    );
+  }
+
+  if (proseDeclarations.length > 0) {
+    rules.push(`${PROSE_TARGET_SELECTOR} { ${proseDeclarations.join(" ")} }`);
+  }
+
+  if (typography.fontWeight !== null) {
+    rules.push(
+      `${PROSE_WEIGHT_TARGET_SELECTOR} { font-weight: ${typography.fontWeight} !important; }`,
+    );
+  }
+
+  return rules;
+}
+
 export const FONT_STYLE_ID = "styleshift-font";
 export const CSS_STYLE_ID = "styleshift-css";
 export const CUSTOM_FONTS_STYLE_ID = "styleshift-custom-fonts";
 
-export const TEXT_TARGET_SELECTOR = [
-  ":where(body, body *)",
+// Shared exclusion tail: icons, code/mono content, and aria-hidden elements
+// are never text-styling targets, whichever base selector they're appended to.
+export const TARGET_EXCLUSIONS = [
   ":not(i)",
   ":not(i *)",
   ":not(svg)",
@@ -170,6 +282,45 @@ export const TEXT_TARGET_SELECTOR = [
   ":not([aria-hidden='true'])",
   ":not([aria-hidden='true'] *)",
 ].join("");
+
+export const TEXT_TARGET_SELECTOR = `:where(body, body *)${TARGET_EXCLUSIONS}`;
+
+// Block-level prose containers. line-height/letter-spacing/font-weight all
+// inherit, so targeting these and letting the value cascade into whatever's
+// unstyled underneath is the only selector strategy that doesn't also have to
+// enumerate every element that (ab)uses line-height for non-typographic
+// layout (e.g. a nav link's vertical-centering hack) - see the "Prose
+// selector redesign" note in style-core.test.ts for the full reasoning.
+const PROSE_ELEMENTS = [
+  "body",
+  "p",
+  "li",
+  "dd",
+  "dt",
+  "blockquote",
+  "figcaption",
+  "td",
+  "th",
+  "h1",
+  "h2",
+  "h3",
+  "h4",
+  "h5",
+  "h6",
+];
+
+export const PROSE_TARGET_SELECTOR = PROSE_ELEMENTS.map(
+  (el) => `${el}${TARGET_EXCLUSIONS}`,
+).join(", ");
+
+// Headings excluded: targeting them directly would flatten the page's
+// heading hierarchy to the body weight. Left untouched, the page's own
+// `h1..h6 { font-weight: bold }` keeps winning over the inherited value.
+export const PROSE_WEIGHT_TARGET_SELECTOR = PROSE_ELEMENTS.filter(
+  (el) => !/^h[1-6]$/.test(el),
+)
+  .map((el) => `${el}${TARGET_EXCLUSIONS}`)
+  .join(", ");
 
 export const CODE_TARGET_SELECTOR =
   "code, code *, pre, pre *, kbd, kbd *, samp, samp *, tt, tt *, [class*='code' i], [class*='code' i] *, [class*='monospace' i], [class*='monospace' i] *, [class*='highlight' i], [class*='highlight' i] *";
@@ -333,6 +484,7 @@ export function availableFontStack(
 export function fontStyleText(
   settings: StyleShiftSettings,
   customFontNames: string[] = [],
+  typography: TypographySettings = DEFAULT_TYPOGRAPHY,
 ): string {
   const availableFonts = availableFontStack(
     settings.fontFamily,
@@ -347,19 +499,25 @@ export function fontStyleText(
     return "";
   }
 
-  const monoFontFamily = serializeFontStack(availableMonoFonts);
-  const monoRule = monoFontFamily
-    ? `${CODE_TARGET_SELECTOR} { font-family: ${monoFontFamily} !important; }`
-    : "";
+  const rules: string[] = [];
 
-  if (!settings.fontFamily.trim() || availableFonts.length === 0) {
-    return monoRule;
+  if (settings.fontFamily.trim() && availableFonts.length > 0) {
+    const fontFamily = serializeFontStack(availableFonts);
+    rules.push(
+      `${TEXT_TARGET_SELECTOR}, ${FORM_TEXT_TARGET_SELECTOR} { font-family: ${fontFamily} !important; }`,
+    );
   }
 
-  const fontFamily = serializeFontStack(availableFonts);
-  const mainRule = `${TEXT_TARGET_SELECTOR}, ${FORM_TEXT_TARGET_SELECTOR} { font-family: ${fontFamily} !important; }`;
+  const monoFontFamily = serializeFontStack(availableMonoFonts);
+  if (monoFontFamily) {
+    rules.push(
+      `${CODE_TARGET_SELECTOR} { font-family: ${monoFontFamily} !important; }`,
+    );
+  }
 
-  return monoRule ? `${mainRule}\n${monoRule}` : mainRule;
+  rules.push(...typographyRules(typography));
+
+  return rules.join("\n");
 }
 
 export function ensureStyle(
@@ -416,8 +574,12 @@ export function ensureStyle(
 export function applySettings(
   settings: StyleShiftSettings,
   customFontNames: string[] = [],
+  typography: TypographySettings = DEFAULT_TYPOGRAPHY,
 ): void {
-  ensureStyle(FONT_STYLE_ID, fontStyleText(settings, customFontNames));
+  ensureStyle(
+    FONT_STYLE_ID,
+    fontStyleText(settings, customFontNames, typography),
+  );
   // `cssEnabled !== false` rather than a truthiness test: settings stored
   // before the per-host CSS toggle existed have no such key, and those must
   // keep applying their CSS.

@@ -7,9 +7,12 @@ import {
   GLOBAL_ENABLED_KEY,
   GLOBAL_FONT_STACK_KEY,
   GLOBAL_MONO_FONT_STACK_KEY,
+  TYPOGRAPHY_KEY,
   isPreActivatedHost,
+  normalizeTypography,
   type StyleShiftSettings,
   type StyleShiftStorage,
+  type TypographySettings,
 } from "./style-core";
 
 export async function readGlobalEnabled(): Promise<boolean> {
@@ -85,4 +88,21 @@ export async function updateHostSettings(
   settings: StyleShiftSettings,
 ): Promise<void> {
   await chrome.storage.local.set({ [hostname]: settings });
+}
+
+export async function readTypography(): Promise<TypographySettings> {
+  const stored = (await chrome.storage.local.get(TYPOGRAPHY_KEY)) as Record<
+    string,
+    unknown
+  >;
+  return normalizeTypography(stored[TYPOGRAPHY_KEY]);
+}
+
+export async function updateTypography(
+  patch: Partial<TypographySettings>,
+): Promise<TypographySettings> {
+  const current = await readTypography();
+  const next = normalizeTypography({ ...current, ...patch });
+  await chrome.storage.local.set({ [TYPOGRAPHY_KEY]: next });
+  return next;
 }

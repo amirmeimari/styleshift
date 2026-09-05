@@ -15,6 +15,7 @@ import {
   GLOBAL_ENABLED_KEY,
   GLOBAL_FONT_STACK_KEY,
   GLOBAL_MONO_FONT_STACK_KEY,
+  TYPOGRAPHY_KEY,
   applySettings,
   customFontFaces,
   ensureStyle,
@@ -26,6 +27,7 @@ import {
   readGlobalFontStack,
   readGlobalMonoFontStack,
   readHostSettings,
+  readTypography,
 } from "@/shared/storage";
 import { readCustomFonts } from "@/shared/custom-fonts";
 import {
@@ -81,11 +83,13 @@ async function loadAndApply() {
     return;
   }
 
-  const [settings, globalFontStack, globalMonoFontStack] = await Promise.all([
-    readHostSettings(hostname),
-    readGlobalFontStack(),
-    readGlobalMonoFontStack(),
-  ]);
+  const [settings, globalFontStack, globalMonoFontStack, typography] =
+    await Promise.all([
+      readHostSettings(hostname),
+      readGlobalFontStack(),
+      readGlobalMonoFontStack(),
+      readTypography(),
+    ]);
 
   if (generation !== applyGeneration) {
     return;
@@ -101,7 +105,11 @@ async function loadAndApply() {
   }
 
   // Bundled fonts are always available, alongside any uploaded/imported ones.
-  applySettings(settings, [...BUILTIN_FONT_NAMES, ...customFontNames]);
+  applySettings(
+    settings,
+    [...BUILTIN_FONT_NAMES, ...customFontNames],
+    typography,
+  );
 }
 
 let currentUrl = window.location.href;
@@ -278,6 +286,7 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
     changes[AUTO_ENABLE_ALL_SITES_KEY] ||
     changes[GLOBAL_FONT_STACK_KEY] ||
     changes[GLOBAL_MONO_FONT_STACK_KEY] ||
+    changes[TYPOGRAPHY_KEY] ||
     changes[hostname];
 
   if (settingsChanged) {

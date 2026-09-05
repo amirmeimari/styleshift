@@ -3,6 +3,7 @@ import {
   applySettings,
   availableFontStack,
   CSS_STYLE_ID,
+  DEFAULT_TYPOGRAPHY,
   ensureStyle,
   FONT_STYLE_ID,
   fontStyleText,
@@ -12,10 +13,17 @@ import {
   hostMatchesPreset,
   isInjectableUrl,
   isPreActivatedHost,
+  normalizeTypography,
   parseFontStack,
   primaryFontFamily,
+  PROSE_TARGET_SELECTOR,
+  PROSE_WEIGHT_TARGET_SELECTOR,
   serializeFontStack,
+  TARGET_EXCLUSIONS,
+  TEXT_TARGET_SELECTOR,
+  TYPOGRAPHY_RANGES,
   type StyleShiftSettings,
+  type TypographySettings,
 } from "./style-core";
 
 describe("parseFontStack", () => {
@@ -377,5 +385,274 @@ describe("ensureStyle head relocation", () => {
     const style = document.getElementById(CSS_STYLE_ID);
     expect(style?.parentNode).toBe(document.head);
     expect(style?.textContent).toBe("body { color: blue; }");
+  });
+});
+
+// Prose selector redesign (Phase 2 typography): line-height, letter-spacing,
+// and font-weight all inherit, so the right selector strategy is an allowlist
+// of block-level prose containers rather than a denylist of exclusions - a
+// denylist can't work for line-height, since the vertical-centering hack
+// (`line-height: 40px` on a nav `<a>` or a tab label) is unenumerable, while
+// an allowlist never touches those elements in the first place.
+describe("TARGET_EXCLUSIONS extraction", () => {
+  it("rebuilds TEXT_TARGET_SELECTOR character-for-character", () => {
+    expect(TEXT_TARGET_SELECTOR).toBe(
+      [
+        ":where(body, body *)",
+        ":not(i)",
+        ":not(i *)",
+        ":not(svg)",
+        ":not(svg *)",
+        ":not(code)",
+        ":not(code *)",
+        ":not(pre)",
+        ":not(pre *)",
+        ":not(kbd)",
+        ":not(kbd *)",
+        ":not(samp)",
+        ":not(samp *)",
+        ":not(tt)",
+        ":not(tt *)",
+        ":not([class*='icon' i])",
+        ":not([class*='icon' i] *)",
+        ":not([class*='material-icons' i])",
+        ":not([class*='material-icons' i] *)",
+        ":not([class*='google-symbols' i])",
+        ":not([class*='google-symbols' i] *)",
+        ":not([style*='Google Symbols' i])",
+        ":not([class^='fa-'])",
+        ":not([class*=' fa-'])",
+        ":not([role='img'])",
+        ":not([role='img'] *)",
+        ":not([aria-hidden='true'])",
+        ":not([aria-hidden='true'] *)",
+      ].join(""),
+    );
+  });
+
+  it("PROSE_TARGET_SELECTOR carries the same exclusion tail on every element", () => {
+    for (const selector of PROSE_TARGET_SELECTOR.split(", ")) {
+      expect(selector.endsWith(TARGET_EXCLUSIONS)).toBe(true);
+    }
+    expect(PROSE_TARGET_SELECTOR).toContain(`body${TARGET_EXCLUSIONS}`);
+    expect(PROSE_TARGET_SELECTOR).toContain(`h1${TARGET_EXCLUSIONS}`);
+  });
+
+  it("PROSE_WEIGHT_TARGET_SELECTOR excludes every heading level", () => {
+    for (let level = 1; level <= 6; level += 1) {
+      expect(PROSE_WEIGHT_TARGET_SELECTOR).not.toContain(
+        `h${level}${TARGET_EXCLUSIONS}`,
+      );
+    }
+    expect(PROSE_WEIGHT_TARGET_SELECTOR).toContain(`body${TARGET_EXCLUSIONS}`);
+    expect(PROSE_WEIGHT_TARGET_SELECTOR).toContain(`p${TARGET_EXCLUSIONS}`);
+  });
+});
+
+describe("normalizeTypography", () => {
+  it("passes through in-range numbers unchanged", () => {
+    expect(
+      normalizeTypography({
+        lineHeight: 1.6,
+        letterSpacing: 0.01,
+        fontWeight: 500,
+        minFontSize: 14,
+      }),
+    ).toEqual({
+      lineHeight: 1.6,
+      letterSpacing: 0.01,
+      fontWeight: 500,
+      minFontSize: 14,
+    });
+  });
+
+  it("treats 0 as a valid, in-range letterSpacing value, not unset", () => {
+    expect(normalizeTypography({ letterSpacing: 0 }).letterSpacing).toBe(0);
+  });
+
+  it("clamps out-of-range numbers to the nearest bound", () => {
+    expect(
+      normalizeTypography({
+        lineHeight: 10,
+        letterSpacing: -5,
+        fontWeight: 50,
+        minFontSize: 999,
+      }),
+    ).toEqual({
+      lineHeight: TYPOGRAPHY_RANGES.lineHeight.max,
+      letterSpacing: TYPOGRAPHY_RANGES.letterSpacing.min,
+      fontWeight: TYPOGRAPHY_RANGES.fontWeight.min,
+      minFontSize: TYPOGRAPHY_RANGES.minFontSize.max,
+    });
+  });
+
+  it("rounds to avoid floating-point noise in emitted CSS", () => {
+    expect(
+      normalizeTypography({ letterSpacing: 0.1 + 0.2 }).letterSpacing,
+    ).toBe(0.3);
+  });
+
+  it("degrades non-numeric input to null rather than coercing it", () => {
+    expect(
+      normalizeTypography({
+        lineHeight: "1.6",
+        letterSpacing: null,
+        fontWeight: Number.NaN,
+        minFontSize: undefined,
+      }),
+    ).toEqual(DEFAULT_TYPOGRAPHY);
+  });
+
+  it("returns all-null defaults for garbage or empty input", () => {
+    expect(normalizeTypography(undefined)).toEqual(DEFAULT_TYPOGRAPHY);
+    expect(normalizeTypography(null)).toEqual(DEFAULT_TYPOGRAPHY);
+    expect(normalizeTypography("not an object")).toEqual(DEFAULT_TYPOGRAPHY);
+    expect(normalizeTypography({})).toEqual(DEFAULT_TYPOGRAPHY);
+  });
+
+  it("cannot be used to inject stray CSS via a crafted string value", () => {
+    const result = normalizeTypography({
+      lineHeight: "1; } body { display:none } .x {",
+    });
+    expect(result.lineHeight).toBeNull();
+  });
+});
+
+describe("fontStyleText typography rules", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  // jsdom has no FontFaceSet; stub document.fonts.check (same shape as the
+  // helper in the "font availability" describe above, out of scope here).
+  function mockAvailable(available: string[]) {
+    Object.defineProperty(document, "fonts", {
+      configurable: true,
+      value: {
+        check: (spec: string) =>
+          available.some((name) => spec.includes(`"${name}"`)),
+      },
+    });
+  }
+
+  const enabledSettings: StyleShiftSettings = {
+    fontFamily: "",
+    monoFontFamily: "",
+    fontEnabled: true,
+    cssEnabled: true,
+    customCSS: "",
+  };
+
+  it("is byte-identical to the pre-typography output for all four family/mono shapes", () => {
+    mockAvailable(["Inter", "Fira Code"]);
+
+    const disabled: StyleShiftSettings = {
+      ...enabledSettings,
+      fontFamily: "Inter",
+      monoFontFamily: "Fira Code",
+      fontEnabled: false,
+    };
+    expect(fontStyleText(disabled)).toBe("");
+
+    const familyOnly: StyleShiftSettings = {
+      ...enabledSettings,
+      fontFamily: "Inter",
+      monoFontFamily: "",
+    };
+    expect(fontStyleText(familyOnly)).toBe(
+      `${TEXT_TARGET_SELECTOR}, input, textarea, select, button, [contenteditable='true'], [contenteditable='true'] *, [role='textbox'], [role='textbox'] * { font-family: Inter !important; }`,
+    );
+
+    const monoOnly: StyleShiftSettings = {
+      ...enabledSettings,
+      fontFamily: "",
+      monoFontFamily: "Fira Code",
+    };
+    expect(fontStyleText(monoOnly)).toBe(
+      `code, code *, pre, pre *, kbd, kbd *, samp, samp *, tt, tt *, [class*='code' i], [class*='code' i] *, [class*='monospace' i], [class*='monospace' i] *, [class*='highlight' i], [class*='highlight' i] * { font-family: "Fira Code" !important; }`,
+    );
+
+    const both: StyleShiftSettings = {
+      ...enabledSettings,
+      fontFamily: "Inter",
+      monoFontFamily: "Fira Code",
+    };
+    expect(fontStyleText(both)).toBe(
+      `${fontStyleText(familyOnly)}\n${fontStyleText(monoOnly)}`,
+    );
+
+    // Passing DEFAULT_TYPOGRAPHY explicitly must be a no-op - this is the
+    // upgrade-safety proof for the Phase 2 restructure.
+    expect(fontStyleText(both, [], DEFAULT_TYPOGRAPHY)).toBe(
+      fontStyleText(both),
+    );
+  });
+
+  it("emits line-height/letter-spacing on the prose selector when family has no match", () => {
+    mockAvailable([]);
+    const typography: TypographySettings = {
+      lineHeight: 1.6,
+      letterSpacing: 0.01,
+      fontWeight: null,
+      minFontSize: null,
+    };
+    const css = fontStyleText(enabledSettings, [], typography);
+    expect(css).toBe(
+      `${PROSE_TARGET_SELECTOR} { line-height: 1.6 !important; letter-spacing: 0.01em !important; }`,
+    );
+    expect(css).not.toContain("font-family");
+  });
+
+  it("emits font-weight on a selector that never contains a heading, strong, b, or em", () => {
+    const typography: TypographySettings = {
+      lineHeight: null,
+      letterSpacing: null,
+      fontWeight: 300,
+      minFontSize: null,
+    };
+    const css = fontStyleText(enabledSettings, [], typography);
+    expect(css).toBe(
+      `${PROSE_WEIGHT_TARGET_SELECTOR} { font-weight: 300 !important; }`,
+    );
+    for (const tag of [
+      "h1",
+      "h2",
+      "h3",
+      "h4",
+      "h5",
+      "h6",
+      "strong",
+      "b",
+      "em",
+    ]) {
+      expect(css).not.toContain(`${tag}${TARGET_EXCLUSIONS}`);
+      expect(css).not.toMatch(new RegExp(`(^|[,\\s])${tag}[,{]`));
+    }
+  });
+
+  it("emits nothing for typography when every field is null", () => {
+    expect(fontStyleText(enabledSettings, [], DEFAULT_TYPOGRAPHY)).toBe("");
+  });
+
+  it("never emits minFontSize as CSS", () => {
+    const typography: TypographySettings = {
+      lineHeight: null,
+      letterSpacing: null,
+      fontWeight: null,
+      minFontSize: 20,
+    };
+    expect(fontStyleText(enabledSettings, [], typography)).toBe("");
+  });
+
+  it("gates typography rules on fontEnabled, same as the family rules", () => {
+    const typography: TypographySettings = {
+      lineHeight: 1.6,
+      letterSpacing: null,
+      fontWeight: null,
+      minFontSize: null,
+    };
+    expect(
+      fontStyleText({ ...enabledSettings, fontEnabled: false }, [], typography),
+    ).toBe("");
   });
 });
