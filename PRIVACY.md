@@ -1,6 +1,6 @@
 # StyleShift Privacy Policy
 
-_Last updated: 2026-08-29_
+_Last updated: 2026-09-06_
 
 StyleShift is a browser extension that injects local fonts and custom CSS into
 web pages. This policy explains what data the extension handles.
@@ -40,6 +40,9 @@ StyleShift does **not**:
 - **`storage` / `unlimitedStorage`** — to save your settings and uploaded fonts
   locally (fonts can be large, hence unlimited storage).
 - **`scripting` / `activeTab`** — to (re)apply your styles to the current tab.
+- **`fontSettings`** — to set Chrome's own minimum-font-size preference, if you use
+  that control. This is a browser-wide preference, not a per-site one, and Chrome
+  requires it to be granted at install rather than requested later.
 
 ## Contact
 

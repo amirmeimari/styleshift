@@ -14,18 +14,24 @@
 
 </div>
 
-**StyleShift** is a Chrome extension that lets you customize fonts and CSS on any website. Pick a bundled font or upload your own — apply it globally or per site, and it sticks around on every visit. No font is ever fetched from a remote host.
+**StyleShift** is a Chrome extension that lets you customize fonts, typography, and CSS on any website. Pick a bundled font or upload your own — apply it globally or per site, and it sticks around on every visit. No font, icon, or anything else is ever fetched from a remote host.
 
 ## Features
 
 - **Font injection** 🔤 — bundled fonts or your own uploads, applied per site or globally, with an availability indicator on every font.
-- **One-click site shortcuts** ⚡ — pre-activated toggles for popular sites, ready to enable in one click.
-- **Code font** 🖋️ — pick one monospace font for code blocks; JetBrains Mono ships bundled.
-- **Custom CSS editor** 🎨 — CodeMirror-powered editor with CSS syntax highlighting, autocomplete, bracket matching, and inline error marks; format, save, remove, reset, and copy per site, with a per-site apply toggle.
+- **One-click site shortcuts** ⚡ — pre-activated toggles for 27 popular sites, ready to enable in one click, with icons bundled in the extension.
+- **Code font** 🖋️ — pick one monospace font for code blocks; JetBrains Mono ships bundled (and is what the CSS editor itself uses).
+- **Typography controls** 🔡 — line height, letter spacing, font weight, and an enlarge-only minimum font size (via Chrome's own `fontSettings` preference).
+- **Custom CSS editor** 🎨 — CodeMirror-powered editor with CSS syntax highlighting, autocomplete, bracket matching, and inline error marks; format, save, remove, reset, and copy per site, with a per-site apply toggle. Also available full-size on the options page.
+- **Global CSS** — one stylesheet applied on every site, independent of and layered under any per-site CSS.
+- **Subdomain inheritance** — a site's settings automatically apply to its subdomains, with a per-site opt-out and a one-click reset back to inherited.
+- **Settings export/import & site manager** 📦 — back up or move your settings as a JSON file, and view/edit/delete every site you've customized from the options page.
 - **Persistent, per-hostname settings** 💾 — everything is stored in `chrome.storage.local` and re-applied automatically on page load/navigation.
+- **Keyboard shortcut** ⌨️ — toggle fonts for the current site without opening the popup (`Alt+Shift+S` by default).
 - **Global toggle** — enable or disable StyleShift for the current site straight from the popup header.
+- **Dark mode** 🌓 — follows the OS by default, with a Light/Dark/System override in Settings.
 - **Localized UI** 🌍 — popup is translated (English, Spanish, Arabic, Chinese, Persian — see `src/shared/i18n`).
-- **Fully offline** 🔒 — all fonts are bundled or user-supplied; the extension makes no font or API requests at any point.
+- **Fully offline** 🔒 — all fonts and icons are bundled or user-supplied; the extension makes no network requests at all.
 
 ## Install
 
@@ -48,7 +54,7 @@ Then load the extension in Chrome:
 ## Tech Stack
 
 - **React + TypeScript + Vite** — popup, settings, and editor pages.
-- **Chrome Extension Manifest V3** — `activeTab`, `scripting`, `storage`, `unlimitedStorage` permissions, `<all_urls>` host permission.
+- **Chrome Extension Manifest V3** — `activeTab`, `scripting`, `storage`, `unlimitedStorage`, `fontSettings` permissions, `<all_urls>` host permission.
 - **Tailwind CSS** — UI styling.
 - **Vitest** — unit tests.
 
@@ -56,13 +62,12 @@ Then load the extension in Chrome:
 
 ```
 src/
-  popup/          Popup UI — font picker, pre-activated sites, code font
-  css-editor/      Standalone CSS editor page
-  font-manager/    Font upload & management page
-  settings/        Extension settings page
+  popup/          Popup UI — font picker, pre-activated sites, code font, CSS tab
+  options/        Options page — full-size CSS editor, site manager, export/import
+  css-editor/      CodeMirror-powered CSS editor, shared by the popup and options page
   content/         Content script — reads storage, injects font/CSS on load
-  background/      Service worker — triggers re-injection on tab navigation
-  shared/          Storage schema, injection logic, font catalogs, i18n
+  background/      Service worker — triggers re-injection, handles the keyboard shortcut
+  shared/          Storage schema, injection logic, font catalogs, i18n, theme, backup
 scripts/build-extension.mjs   Build step for the content script & service worker
 public/manifest.json          Extension manifest
 ```
@@ -92,7 +97,8 @@ Settings are stored in `chrome.storage.local`, keyed by hostname:
     "monoFontFamily": "'JetBrains Mono'",
     "fontEnabled": true,
     "cssEnabled": true,
-    "customCSS": "body { background: #000; }"
+    "customCSS": "body { background: #000; }",
+    "includeSubdomains": true
   }
 }
 ```
