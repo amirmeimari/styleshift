@@ -814,7 +814,7 @@ export function App() {
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent
-                          className="w-[var(--radix-popover-trigger-width)] max-w-[calc(480px-1.25rem)] p-0"
+                          className="w-[var(--radix-popover-trigger-width)] max-w-[calc(480px-1.25rem)] p-[7px]"
                           align="start"
                           sideOffset={2}
                           collisionPadding={8}
@@ -1078,7 +1078,7 @@ export function App() {
                           </Button>
                         </PopoverTrigger>
                         <PopoverContent
-                          className="w-[var(--radix-popover-trigger-width)] max-w-[calc(480px-1.25rem)] p-0"
+                          className="w-[var(--radix-popover-trigger-width)] max-w-[calc(480px-1.25rem)] p-[7px]"
                           align="start"
                           sideOffset={2}
                           collisionPadding={8}
@@ -1281,7 +1281,7 @@ export function App() {
                   </div>
                   {hostname && (
                     <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-[var(--fabric-linen)] px-2 py-1.5">
-                      <p className="min-w-0 text-[10px] text-muted-foreground">
+                      <p className="min-w-0 text-xs text-muted-foreground">
                         {t("editor.editingFor")}{" "}
                         <span className="font-mono font-semibold">
                           {hostname}
@@ -1290,7 +1290,7 @@ export function App() {
                       <div className="flex shrink-0 items-center gap-1.5">
                         <Label
                           htmlFor="css-enabled"
-                          className="text-[10px] text-muted-foreground"
+                          className="text-xs text-muted-foreground"
                         >
                           {t("editor.applyCss")}
                         </Label>
@@ -1306,7 +1306,7 @@ export function App() {
                   {hostname && (
                     <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-[var(--fabric-linen)] px-2 py-1.5">
                       <div className="flex min-w-0 items-center gap-1">
-                        <p className="min-w-0 truncate text-[10px] text-muted-foreground">
+                        <p className="min-w-0 truncate text-xs text-muted-foreground">
                           {t("editor.includeSubdomains")}
                         </p>
                         <HelpTooltip

@@ -4,7 +4,7 @@
 export type ThemePref = "light" | "dark" | "system";
 
 export const THEME_STORAGE_KEY = "__styleshift_theme__";
-export const DEFAULT_THEME: ThemePref = "system";
+export const DEFAULT_THEME: ThemePref = "light";
 
 export function isThemePref(value: unknown): value is ThemePref {
   return value === "light" || value === "dark" || value === "system";
