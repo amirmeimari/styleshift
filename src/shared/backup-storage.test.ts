@@ -5,11 +5,12 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 import { applyBackup, collectBackup } from "./backup-storage";
-import exactQABackup from "../../docs/redesign/evidence/popup-font-qa/baseline-backup.json?raw";
 import { buildBackup, parseBackup, type StyleShiftBackup } from "./backup";
 import {
+  CUSTOM_FONT_CHUNK_SIZE,
   CUSTOM_FONT_INDEX_KEY,
   DEFAULT_SETTINGS,
+  DEFAULT_TYPOGRAPHY,
   GLOBAL_ENABLED_KEY,
   type StyleShiftSettings,
 } from "./style-core";
@@ -272,10 +273,40 @@ describe("applyBackup - replace mode", () => {
 });
 
 it.each(["merge", "replace"] as const)(
-  "restores the exact QA-PF1 backup with %s and preserves bytes and order",
+  "restores a backup with %s and preserves bytes and order",
   async (mode) => {
-    const original: StyleShiftBackup = JSON.parse(exactQABackup);
-    if (!original.fonts) throw new Error("Expected fonts in QA fixture");
+    // Use synthetic bytes large enough to span multiple storage chunks.
+    const woff2 = {
+      id: "fixture-woff2",
+      name: "Fixture Sans",
+      format: "woff2",
+      mimeType: "",
+      data: btoa("wOF2" + "A".repeat(CUSTOM_FONT_CHUNK_SIZE)),
+    };
+    const ttf = {
+      id: "fixture-ttf",
+      name: "Fixture Mono",
+      format: "ttf",
+      mimeType: "font/ttf",
+      data: btoa("synthetic font bytes"),
+    };
+    const original = buildBackup({
+      globals: {
+        enabled: true,
+        autoEnableAllSites: false,
+        fontStack: [woff2.name, "Inter"],
+        monoFontStack: [ttf.name, "JetBrains Mono"],
+        typography: DEFAULT_TYPOGRAPHY,
+        globalCSS: "html { line-height: 1.5; }",
+        locale: "en",
+        theme: "dark",
+      },
+      sites: {
+        "first.example": SITE,
+        "second.example": { ...SITE, customCSS: "body { color: blue; }" },
+      },
+      fonts: [woff2, ttf],
+    });
     const fields = ({
       id,
       name,
@@ -289,22 +320,8 @@ it.each(["merge", "replace"] as const)(
       mimeType,
       data,
     });
-    const expectedFonts = original.fonts
-      .map(fields)
-      .map((font) =>
-        font.id === "qa-glyph-vazirmatn"
-          ? { ...font, mimeType: "font/woff2" }
-          : font,
-      );
-    expect(
-      original.fonts?.find((font) => font.id === "qa-glyph-vazirmatn")
-        ?.mimeType,
-    ).toBe("");
-    const woff2 = atob(
-      original.fonts.find((font) => font.id === "qa-glyph-vazirmatn")!.data,
-    );
-    expect(woff2.length).toBe(21_088);
-    const parsed = parseBackup(exactQABackup);
+    const expectedFonts = [{ ...woff2, mimeType: "font/woff2" }, ttf];
+    const parsed = parseBackup(JSON.stringify(original));
     if (!parsed.ok) throw new Error(parsed.error);
     expect(parsed.warnings).toEqual([]);
     expect(parsed.backup.fonts).toEqual(expectedFonts);
@@ -318,8 +335,8 @@ it.each(["merge", "replace"] as const)(
     };
     await updateCustomFont(existing);
     const report = await applyBackup(parsed.backup, mode);
-    expect(report.fontsWritten).toBe(5);
-    expect(report.sitesWritten).toBe(3);
+    expect(report.fontsWritten).toBe(2);
+    expect(report.sitesWritten).toBe(2);
     const restored = await collectBackup(true);
     expect(restored.fonts?.map(fields)).toEqual(
       mode === "merge" ? [existing, ...expectedFonts] : expectedFonts,
