@@ -31,6 +31,8 @@ export type StyleShiftBackupGlobals = {
   autoEnableAllSites?: boolean;
   fontStack?: string[];
   monoFontStack?: string[];
+  savedTextFontNames?: string[];
+  savedCodeFontNames?: string[];
   typography?: TypographySettings;
   locale?: LocaleCode;
   theme?: ThemePref;
@@ -257,6 +259,15 @@ function sanitizeGlobals(raw: unknown): {
     globals.monoFontStack = source.monoFontStack as string[];
   } else if (source.monoFontStack !== undefined) {
     warnings.push("Global mono font stack was invalid and was dropped.");
+  }
+  for (const field of ["savedTextFontNames", "savedCodeFontNames"] as const) {
+    const names = source[field];
+    if (
+      Array.isArray(names) &&
+      names.every((name) => typeof name === "string")
+    ) {
+      globals[field] = names;
+    }
   }
   if (source.typography !== undefined) {
     globals.typography = normalizeTypography(source.typography);

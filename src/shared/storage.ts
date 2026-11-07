@@ -1,6 +1,11 @@
 // Global and per-host settings persisted in chrome.storage.local.
 
-import { DEFAULT_MONO_FONT } from "./builtin-fonts";
+import {
+  BUILTIN_MONO_FONT_NAMES,
+  BUILTIN_SANS_FONT_NAMES,
+  DEFAULT_MONO_FONT,
+} from "./builtin-fonts";
+import { distinctFontNames } from "./font-stack";
 import {
   AUTO_ENABLE_ALL_SITES_KEY,
   DEFAULT_SETTINGS,
@@ -8,6 +13,8 @@ import {
   GLOBAL_ENABLED_KEY,
   GLOBAL_FONT_STACK_KEY,
   GLOBAL_MONO_FONT_STACK_KEY,
+  SAVED_TEXT_FONT_NAMES_KEY,
+  SAVED_CODE_FONT_NAMES_KEY,
   TYPOGRAPHY_KEY,
   hostSettingsCandidates,
   isPreActivatedHost,
@@ -48,17 +55,62 @@ export async function readGlobalFontStack(): Promise<string[]> {
   return (await readGlobalFontStackEntry()).value;
 }
 
-let globalFontStackWriteQueue: Promise<void> = Promise.resolve();
+export async function readSavedFontNames(): Promise<{
+  text: string[];
+  code: string[];
+}> {
+  // The old shared list did not record which picker added a name.
+  const stored = (await chrome.storage.local.get([
+    SAVED_TEXT_FONT_NAMES_KEY,
+    SAVED_CODE_FONT_NAMES_KEY,
+  ])) as Record<string, string[] | undefined>;
+  return {
+    text: stored[SAVED_TEXT_FONT_NAMES_KEY] ?? [],
+    code: stored[SAVED_CODE_FONT_NAMES_KEY] ?? [],
+  };
+}
+
+let fontStackWriteQueue = Promise.resolve<string[]>([]);
+
+function saveFontSelection(
+  key: typeof GLOBAL_FONT_STACK_KEY | typeof GLOBAL_MONO_FONT_STACK_KEY,
+  savedKey: typeof SAVED_TEXT_FONT_NAMES_KEY | typeof SAVED_CODE_FONT_NAMES_KEY,
+  next: string[],
+  listedFonts: readonly string[],
+): Promise<string[]> {
+  fontStackWriteQueue = fontStackWriteQueue
+    .catch(() => undefined)
+    .then(async () => {
+      const stored = (await chrome.storage.local.get([
+        key,
+        savedKey,
+      ])) as Record<string, string[] | undefined>;
+      const saved = stored[savedKey] ?? [];
+      // Preserve the previous selection even when it predates this history.
+      const localNames = distinctFontNames(
+        [...(stored[key] ?? []), ...next],
+        listedFonts,
+      );
+      const nextSaved = distinctFontNames([...saved, ...localNames]);
+      await chrome.storage.local.set({
+        [key]: next,
+        ...(nextSaved.length ? { [savedKey]: nextSaved } : {}),
+      });
+      return nextSaved;
+    });
+  return fontStackWriteQueue;
+}
 
 export async function updateGlobalFontStack(
   fontStack: string[],
-): Promise<void> {
-  globalFontStackWriteQueue = globalFontStackWriteQueue
-    .catch(() => undefined)
-    .then(() =>
-      chrome.storage.local.set({ [GLOBAL_FONT_STACK_KEY]: fontStack }),
-    );
-  await globalFontStackWriteQueue;
+  uploadedFontNames: string[] = [],
+): Promise<string[]> {
+  return saveFontSelection(
+    GLOBAL_FONT_STACK_KEY,
+    SAVED_TEXT_FONT_NAMES_KEY,
+    fontStack,
+    [...BUILTIN_SANS_FONT_NAMES, ...uploadedFontNames],
+  );
 }
 
 export async function readGlobalMonoFontStackEntry(): Promise<StoredFontStack> {
@@ -78,17 +130,16 @@ export async function readGlobalMonoFontStack(): Promise<string[]> {
   return (await readGlobalMonoFontStackEntry()).value;
 }
 
-let globalMonoFontStackWriteQueue: Promise<void> = Promise.resolve();
-
 export async function updateGlobalMonoFontStack(
   fontStack: string[],
-): Promise<void> {
-  globalMonoFontStackWriteQueue = globalMonoFontStackWriteQueue
-    .catch(() => undefined)
-    .then(() =>
-      chrome.storage.local.set({ [GLOBAL_MONO_FONT_STACK_KEY]: fontStack }),
-    );
-  await globalMonoFontStackWriteQueue;
+  uploadedFontNames: string[] = [],
+): Promise<string[]> {
+  return saveFontSelection(
+    GLOBAL_MONO_FONT_STACK_KEY,
+    SAVED_CODE_FONT_NAMES_KEY,
+    fontStack,
+    [...BUILTIN_MONO_FONT_NAMES, ...uploadedFontNames],
+  );
 }
 
 export async function readGlobalCSS(): Promise<string> {

@@ -14,6 +14,7 @@ import {
   readGlobalMonoFontStack,
   readGlobalMonoFontStackEntry,
   readHostSettings,
+  readSavedFontNames,
   resolveHostSettings,
   updateHostSettings,
   updateGlobalFontStack,
@@ -25,6 +26,8 @@ import {
   AUTO_ENABLE_ALL_SITES_KEY,
   TYPOGRAPHY_KEY,
   DEFAULT_SETTINGS,
+  GLOBAL_FONT_STACK_KEY,
+  GLOBAL_MONO_FONT_STACK_KEY,
   isPreActivatedHost,
 } from "./style-core";
 import { stubChrome } from "./test-chrome";
@@ -304,5 +307,19 @@ describe("global ordered font stacks", () => {
     await updateGlobalMonoFontStack(["JetBrains Mono"]);
     expect(await readGlobalFontStack()).toEqual(["Inter", "Vazirmatn"]);
     expect(await readGlobalMonoFontStack()).toEqual(["JetBrains Mono"]);
+  });
+
+  it("retains older local selections in their respective histories", async () => {
+    store[GLOBAL_FONT_STACK_KEY] = ["Local Sans", "Uploaded Sans"];
+    store[GLOBAL_MONO_FONT_STACK_KEY] = ["Local Mono"];
+    store.__styleshift_saved_font_names__ = ["Unassigned Font", "Local Mono"];
+    await Promise.all([
+      updateGlobalFontStack(["Inter"], ["Uploaded Sans"]),
+      updateGlobalMonoFontStack(["JetBrains Mono"]),
+    ]);
+    expect(await readSavedFontNames()).toEqual({
+      text: ["Local Sans"],
+      code: ["Local Mono"],
+    });
   });
 });

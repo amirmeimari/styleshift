@@ -47,9 +47,9 @@ it("uses the highlighted search result on Enter instead of saving the query", as
   expect(onChange).toHaveBeenCalledWith(["Roboto"]);
 });
 
-it("still accepts a custom family when search has no matching option", async () => {
+it("accepts a typed family and lists it in the reopened pickers", async () => {
   const onChange = vi.fn();
-  render(
+  const { rerender } = render(
     <FontPairing fontStack={[]} uploadedFontNames={[]} onChange={onChange} />,
   );
   fireEvent.click(screen.getByRole("button", { name: "Add fallback" }));
@@ -57,6 +57,24 @@ it("still accepts a custom family when search has no matching option", async () 
   fireEvent.change(input, { target: { value: "My Local Font" } });
   fireEvent.keyDown(input, { key: "Enter" });
   expect(onChange).toHaveBeenCalledWith(["My Local Font"]);
+
+  rerender(
+    <FontPairing
+      fontStack={["My Local Font"]}
+      uploadedFontNames={[]}
+      onChange={onChange}
+    />,
+  );
+  fireEvent.click(screen.getByRole("button", { name: "Add fallback" }));
+  const inUse = await screen.findByRole("option", { name: /^My Local Font/ });
+  expect(inUse.getAttribute("aria-disabled")).toBe("true");
+  fireEvent.keyDown(screen.getByRole("combobox"), { key: "Escape" });
+
+  fireEvent.click(
+    screen.getByRole("button", { name: "Replace Primary: My Local Font" }),
+  );
+  const current = await screen.findByRole("option", { name: /^My Local Font/ });
+  expect(current.getAttribute("aria-disabled")).toBe("false");
 });
 
 it.each(["Inter", "JetBrains Mono", "Arial"])(

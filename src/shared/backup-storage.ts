@@ -15,6 +15,8 @@ import {
   GLOBAL_ENABLED_KEY,
   GLOBAL_FONT_STACK_KEY,
   GLOBAL_MONO_FONT_STACK_KEY,
+  SAVED_TEXT_FONT_NAMES_KEY,
+  SAVED_CODE_FONT_NAMES_KEY,
   TYPOGRAPHY_KEY,
   normalizeTypography,
   type StyleShiftSettings,
@@ -68,6 +70,12 @@ export async function collectBackup(
     monoFontStack,
     typography,
   };
+  const savedTextFontNames = all[SAVED_TEXT_FONT_NAMES_KEY];
+  const savedCodeFontNames = all[SAVED_CODE_FONT_NAMES_KEY];
+  if (Array.isArray(savedTextFontNames))
+    globals.savedTextFontNames = savedTextFontNames;
+  if (Array.isArray(savedCodeFontNames))
+    globals.savedCodeFontNames = savedCodeFontNames;
 
   // Unlike fontStack/typography (recoverable preferences safe to always
   // round-trip), global CSS is user-authored content - only include it when
@@ -111,6 +119,8 @@ const GLOBAL_KEY_MAP: Record<keyof StyleShiftBackupGlobals, string> = {
   autoEnableAllSites: AUTO_ENABLE_ALL_SITES_KEY,
   fontStack: GLOBAL_FONT_STACK_KEY,
   monoFontStack: GLOBAL_MONO_FONT_STACK_KEY,
+  savedTextFontNames: SAVED_TEXT_FONT_NAMES_KEY,
+  savedCodeFontNames: SAVED_CODE_FONT_NAMES_KEY,
   typography: TYPOGRAPHY_KEY,
   locale: LOCALE_STORAGE_KEY,
   theme: THEME_STORAGE_KEY,

@@ -1,4 +1,5 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { defaultFilter } from "cmdk";
 import {
   ArrowLeft,
   ChevronsUpDown,
@@ -27,6 +28,7 @@ import { FontStatusDot } from "@/components/font-status-dot";
 import { HelpTooltip } from "@/components/help";
 import { useI18n } from "@/shared/i18n/use-i18n";
 import { BUILTIN_FONTS, BUILTIN_MONO_FONT_NAMES } from "@/shared/builtin-fonts";
+import { distinctFontNames, normalizeFontName } from "@/shared/font-stack";
 import {
   Command,
   CommandEmpty,
@@ -71,6 +73,7 @@ import {
   readGlobalFontStack,
   readGlobalMonoFontStack,
   readHostSettings,
+  readSavedFontNames,
   readTypography,
   requestReinject,
   resolveHostSettings,
@@ -202,6 +205,8 @@ export function App() {
   const [actionError, setActionError] = useState(false);
   const [fontFamily, setFontFamily] = useState(DEFAULT_SETTINGS.fontFamily);
   const [fontStack, setFontStack] = useState<string[]>([]);
+  const [savedTextFontNames, setSavedTextFontNames] = useState<string[]>([]);
+  const [savedCodeFontNames, setSavedCodeFontNames] = useState<string[]>([]);
   // The raw family name ("Fira Code"), never the serialized CSS value
   // (`"Fira Code"` with quotes). Serialization happens only at the storage
   // boundary in persistMonoFont, so nothing renders stray quote marks.
@@ -209,6 +214,7 @@ export function App() {
   const [fontEnabled, setFontEnabled] = useState(DEFAULT_SETTINGS.fontEnabled);
   const [globalEnabled, setGlobalEnabled] = useState(true);
   const [monoFontComboboxOpen, setMonoFontComboboxOpen] = useState(false);
+  const [monoFontDraft, setMonoFontDraft] = useState("");
   const [fontView, setFontView] = useState<FontView>("pairing");
   const [fontSaveState, setFontSaveState] = useState<SaveState>("idle");
   const fontSaveGeneration = useRef(0);
@@ -275,6 +281,13 @@ export function App() {
 
   const monoFontOptions = useMemo(
     () => [
+      {
+        heading: t("popup.savedFonts"),
+        fonts: distinctFontNames(
+          [monoFont, ...savedCodeFontNames],
+          [...BUILTIN_MONO_FONT_NAMES, ...uploadedFontNames],
+        ),
+      },
       { heading: t("popup.bundledFonts"), fonts: BUILTIN_MONO_FONT_NAMES },
       {
         heading: t("popup.uploadedFonts"),
@@ -286,8 +299,15 @@ export function App() {
         ),
       },
     ],
-    [t, uploadedFontNames],
+    [t, monoFont, savedCodeFontNames, uploadedFontNames],
   );
+  const typedMonoFont = normalizeFontName(monoFontDraft);
+  const monoFontQuery = monoFontDraft.trim().toLocaleLowerCase();
+  const showTypedMonoFont =
+    Boolean(typedMonoFont) &&
+    !monoFontOptions.some((group) =>
+      group.fonts.some((font) => font.toLocaleLowerCase() === monoFontQuery),
+    );
 
   const canApply = useMemo(
     () => Boolean(hostname) && globalEnabled,
@@ -309,6 +329,7 @@ export function App() {
           enabled,
           hydratedFontStack,
           hydratedMonoFontStack,
+          storedFontNames,
           fonts,
           storedTypography,
           storedGlobalCSS,
@@ -318,6 +339,7 @@ export function App() {
           readGlobalEnabled(),
           readGlobalFontStack(),
           readGlobalMonoFontStack(),
+          readSavedFontNames(),
           readCustomFonts(),
           readTypography(),
           readGlobalCSS(),
@@ -346,6 +368,8 @@ export function App() {
         setHostname(host);
         setFontStack(hydratedFontStack);
         persistedStack.current = hydratedFontStack;
+        setSavedTextFontNames(storedFontNames.text);
+        setSavedCodeFontNames(storedFontNames.code);
         setFontFamily(hydratedFontFamily);
         setMonoFont(hydratedMonoFont);
         persistedMono.current = hydratedMonoFont;
@@ -454,7 +478,9 @@ export function App() {
     setFontStack(nextFontStack);
     setFontFamily(nextFontFamily);
     try {
-      await updateGlobalFontStack(nextFontStack);
+      setSavedTextFontNames(
+        await updateGlobalFontStack(nextFontStack, uploadedFontNames),
+      );
       persistedStack.current = nextFontStack;
     } catch (error) {
       console.error("Error saving font stack:", error);
@@ -479,7 +505,9 @@ export function App() {
 
     setMonoFont(nextFont);
     try {
-      await updateGlobalMonoFontStack(nextStack);
+      setSavedCodeFontNames(
+        await updateGlobalMonoFontStack(nextStack, uploadedFontNames),
+      );
       persistedMono.current = nextFont;
     } catch (error) {
       console.error("Error saving code font:", error);
@@ -493,19 +521,23 @@ export function App() {
     finishFontSave(generation, "saved");
   }
 
-  async function chooseMonoFont(fontName: string) {
-    const nextFont = fontName.trim().replace(/,/g, "");
+  function changeMonoFontPickerOpen(open: boolean) {
+    setMonoFontComboboxOpen(open);
+    if (!open) setMonoFontDraft("");
+  }
 
+  async function chooseMonoFont(fontName: string) {
+    const nextFont = normalizeFontName(fontName);
     if (!nextFont) {
       return;
     }
 
-    setMonoFontComboboxOpen(false);
+    changeMonoFontPickerOpen(false);
     await persistMonoFont(nextFont);
   }
 
   async function clearMonoFont() {
-    setMonoFontComboboxOpen(false);
+    changeMonoFontPickerOpen(false);
     await persistMonoFont("");
   }
 
@@ -988,6 +1020,7 @@ export function App() {
 
                       <FontPairing
                         fontStack={fontStack}
+                        savedFontNames={savedTextFontNames}
                         uploadedFontNames={uploadedFontNames}
                         disabled={!globalEnabled}
                         busy={fontSaveState === "saving"}
@@ -1041,7 +1074,7 @@ export function App() {
                           </Label>
                           <Popover
                             open={monoFontComboboxOpen}
-                            onOpenChange={setMonoFontComboboxOpen}
+                            onOpenChange={changeMonoFontPickerOpen}
                           >
                             <PopoverTrigger asChild>
                               <Button
@@ -1057,7 +1090,7 @@ export function App() {
                                   className="truncate text-sm"
                                   style={{
                                     fontFamily: monoFont
-                                      ? `'${monoFont}', ui-monospace, monospace`
+                                      ? `${serializeFontStack([monoFont])}, ui-monospace, monospace`
                                       : undefined,
                                   }}
                                 >
@@ -1079,15 +1112,37 @@ export function App() {
                               collisionPadding={8}
                               usePortal={false}
                             >
-                              <Command>
+                              <Command
+                                label={t("popup.searchOrTypeFont")}
+                                filter={(value, search, keywords) =>
+                                  defaultFilter(value, search.trim(), keywords)
+                                }
+                              >
                                 <CommandInput
-                                  placeholder={t("popup.searchCodeFont")}
-                                  aria-label={t("popup.searchCodeFont")}
+                                  placeholder={t("popup.searchOrTypeFont")}
+                                  value={monoFontDraft}
+                                  onValueChange={setMonoFontDraft}
                                 />
                                 <CommandList className="max-h-[220px]">
                                   <CommandEmpty>
                                     {t("popup.noFontsFound")}
                                   </CommandEmpty>
+                                  {showTypedMonoFont && (
+                                    <CommandItem
+                                      value={`local:${monoFontDraft.trim()}`}
+                                      keywords={[monoFontDraft]}
+                                      onSelect={() =>
+                                        chooseMonoFont(typedMonoFont)
+                                      }
+                                    >
+                                      <span className="me-2 shrink-0 text-muted-foreground">
+                                        {t("popup.addFont")}
+                                      </span>{" "}
+                                      <span className="min-w-0 flex-1 truncate">
+                                        {typedMonoFont}
+                                      </span>
+                                    </CommandItem>
+                                  )}
                                   <CommandGroup>
                                     <CommandItem
                                       value={t("popup.noCodeFont")}
@@ -1121,7 +1176,7 @@ export function App() {
                                             <span
                                               className="flex-1 truncate"
                                               style={{
-                                                fontFamily: `'${font}', ui-monospace, monospace`,
+                                                fontFamily: `${serializeFontStack([font])}, ui-monospace, monospace`,
                                               }}
                                             >
                                               {font}

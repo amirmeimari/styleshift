@@ -325,3 +325,89 @@ it("preserves legacy host values when explicitly editing the shared pairing", as
   expect(store.localhost).toEqual(legacy);
   expect(store[GLOBAL_FONT_STACK_KEY]).toEqual(["Inter"]);
 });
+
+it("keeps separate typed font histories after switching and reopening the popup", async () => {
+  await chrome.storage.local.set({ localhost: legacy });
+  await expectAgreement([], DEFAULT_MONO_FONT);
+
+  fireEvent.click(screen.getByRole("combobox", { name: "Code font" }));
+  const input = screen.getByRole("combobox", {
+    name: "Search or type a font name",
+  });
+  fireEvent.change(input, { target: { value: "  My Local Mono  " } });
+
+  const option = await screen.findByRole("option", {
+    name: "Add font My Local Mono",
+  });
+  await waitFor(() =>
+    expect(option.getAttribute("aria-selected")).toBe("true"),
+  );
+  fireEvent.keyDown(input, { key: "Enter" });
+
+  await waitFor(() =>
+    expect(store[GLOBAL_MONO_FONT_STACK_KEY]).toEqual(["My Local Mono"]),
+  );
+  expect(Object.hasOwn(store, GLOBAL_FONT_STACK_KEY)).toBe(false);
+  cleanup();
+  // jsdom has no installed fonts, so simulate Chrome resolving this family.
+  const fonts = Object.getOwnPropertyDescriptor(document, "fonts");
+  Object.defineProperty(document, "fonts", {
+    configurable: true,
+    value: { check: (spec: string) => spec === '12px "My Local Mono"' },
+  });
+  try {
+    await expectAgreement([], "My Local Mono");
+    fireEvent.click(screen.getByRole("combobox", { name: "Code font" }));
+    fireEvent.click(
+      await screen.findByRole("option", { name: /^JetBrains Mono/ }),
+    );
+    await waitFor(() =>
+      expect(store[GLOBAL_MONO_FONT_STACK_KEY]).toEqual(["JetBrains Mono"]),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Add fallback" }));
+    const pairingInput = await screen.findByPlaceholderText(
+      "Search or type a font name",
+    );
+    fireEvent.change(pairingInput, { target: { value: "My Local Text" } });
+    fireEvent.keyDown(pairingInput, { key: "Enter" });
+    await waitFor(() =>
+      expect(store[GLOBAL_FONT_STACK_KEY]).toEqual(["My Local Text"]),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Replace Primary: My Local Text" }),
+    );
+    fireEvent.click(await screen.findByRole("option", { name: /^Inter/ }));
+    await waitFor(() =>
+      expect(store[GLOBAL_FONT_STACK_KEY]).toEqual(["Inter"]),
+    );
+
+    cleanup();
+    await expectAgreement(["Inter"], "JetBrains Mono");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Replace Primary: Inter" }),
+    );
+    expect(
+      await screen.findByRole("option", { name: /^My Local Text/ }),
+    ).toBeTruthy();
+    expect(screen.queryByRole("option", { name: /^My Local Mono/ })).toBeNull();
+    fireEvent.keyDown(
+      screen.getByPlaceholderText("Search or type a font name"),
+      {
+        key: "Escape",
+      },
+    );
+    fireEvent.click(screen.getByRole("combobox", { name: "Code font" }));
+    const savedCodeFont = await screen.findByRole("option", {
+      name: /^My Local Mono/,
+    });
+    expect(screen.queryByRole("option", { name: /^My Local Text/ })).toBeNull();
+    fireEvent.click(savedCodeFont);
+    await waitFor(() =>
+      expect(store[GLOBAL_MONO_FONT_STACK_KEY]).toEqual(["My Local Mono"]),
+    );
+  } finally {
+    if (fonts) Object.defineProperty(document, "fonts", fonts);
+    else Reflect.deleteProperty(document, "fonts");
+  }
+});

@@ -296,6 +296,8 @@ it.each(["merge", "replace"] as const)(
         autoEnableAllSites: false,
         fontStack: [woff2.name, "Inter"],
         monoFontStack: [ttf.name, "JetBrains Mono"],
+        savedTextFontNames: ["Previously Selected Text Font"],
+        savedCodeFontNames: ["Previously Selected Code Font"],
         typography: DEFAULT_TYPOGRAPHY,
         globalCSS: "html { line-height: 1.5; }",
         locale: "en",

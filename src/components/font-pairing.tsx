@@ -18,6 +18,7 @@ import {
 import { BUILTIN_SANS_FONT_NAMES } from "@/shared/builtin-fonts";
 import {
   addFontToStack,
+  distinctFontNames,
   normalizeFontName,
   removeFontFromStack,
   replaceFontInStack,
@@ -27,6 +28,7 @@ import { useI18n } from "@/shared/i18n/use-i18n";
 
 type FontPairingProps = {
   fontStack: string[];
+  savedFontNames?: string[];
   uploadedFontNames: string[];
   disabled?: boolean;
   busy?: boolean;
@@ -35,6 +37,7 @@ type FontPairingProps = {
 
 export function FontPairing({
   fontStack,
+  savedFontNames,
   uploadedFontNames,
   disabled = false,
   busy = false,
@@ -108,6 +111,14 @@ export function FontPairing({
   const options = useMemo(
     () => [
       {
+        heading: t("popup.savedFonts"),
+        fonts: distinctFontNames(
+          [...fontStack, ...(savedFontNames ?? [])],
+          [...BUILTIN_SANS_FONT_NAMES, ...uploadedFontNames],
+        ),
+        showInUse: true,
+      },
+      {
         heading: t("popup.bundledFonts"),
         fonts: BUILTIN_SANS_FONT_NAMES,
       },
@@ -122,7 +133,7 @@ export function FontPairing({
         ),
       },
     ],
-    [t, uploadedFontNames],
+    [t, fontStack, savedFontNames, uploadedFontNames],
   );
 
   function closePicker() {
@@ -142,16 +153,18 @@ export function FontPairing({
 
   function picker(index: number, trigger: React.ReactNode) {
     const query = draft.trim().toLocaleLowerCase();
+    const inUse = new Set(
+      fontStack
+        .filter((_, savedIndex) => savedIndex !== index)
+        .map((font) => font.toLocaleLowerCase()),
+    );
+    const typedFont = normalizeFontName(draft);
     const groups = options.map((group) => ({
       ...group,
       fonts: group.fonts.filter(
         (font) =>
           (!query || font.toLocaleLowerCase().includes(query)) &&
-          !fontStack.some(
-            (saved, savedIndex) =>
-              savedIndex !== index &&
-              saved.toLocaleLowerCase() === font.toLocaleLowerCase(),
-          ),
+          (group.showInUse || !inUse.has(font.toLocaleLowerCase())),
       ),
     }));
     return (
@@ -184,11 +197,16 @@ export function FontPairing({
               onKeyDown={(event) => {
                 if (
                   event.key === "Enter" &&
-                  !groups.some((group) => group.fonts.length) &&
-                  normalizeFontName(draft)
+                  typedFont &&
+                  !inUse.has(typedFont.toLocaleLowerCase()) &&
+                  !groups.some((group) =>
+                    group.fonts.some(
+                      (font) => !inUse.has(font.toLocaleLowerCase()),
+                    ),
+                  )
                 ) {
                   event.preventDefault();
-                  chooseFont(draft);
+                  chooseFont(typedFont);
                 }
               }}
             />
@@ -202,6 +220,7 @@ export function FontPairing({
                       <CommandItem
                         key={font}
                         value={font}
+                        disabled={inUse.has(font.toLocaleLowerCase())}
                         onSelect={() => chooseFont(font)}
                       >
                         <span className="min-w-0 flex-1 truncate">{font}</span>

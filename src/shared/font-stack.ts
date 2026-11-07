@@ -6,6 +6,19 @@ export function normalizeFontName(value: string): string {
   return value.trim().replace(/,/g, "");
 }
 
+export function distinctFontNames(
+  names: readonly string[],
+  excluded: readonly string[] = [],
+): string[] {
+  const seen = new Set(excluded.map((name) => name.toLocaleLowerCase()));
+  return names.filter((name) => {
+    const key = name.toLocaleLowerCase();
+    if (!key.trim() || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
 export function addFontToStack(stack: string[], value: string): string[] {
   const name = normalizeFontName(value);
   if (
