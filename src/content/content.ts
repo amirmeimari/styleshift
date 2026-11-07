@@ -50,14 +50,13 @@ function injectBuiltinFonts(): void {
   );
 }
 
-async function injectCustomFonts(): Promise<string[]> {
+async function injectCustomFonts(generation: number): Promise<string[]> {
   try {
     const fonts = await readCustomFonts();
-    const faces = customFontFaces(fonts);
-
-    if (faces.trim()) {
-      ensureStyle(CUSTOM_FONTS_STYLE_ID, faces);
-    }
+    if (generation !== applyGeneration) return [];
+    // Passing an empty sheet removes the previous faces after the last font
+    // is deleted; retaining it would keep the deleted family available.
+    ensureStyle(CUSTOM_FONTS_STYLE_ID, customFontFaces(fonts));
 
     return Object.values(fonts).map((font) => font.name);
   } catch (error) {
@@ -108,7 +107,7 @@ async function loadAndApply() {
   settings.fontFamily = serializeFontStack(globalFontStack);
   settings.monoFontFamily = serializeFontStack(globalMonoFontStack);
   injectBuiltinFonts();
-  const customFontNames = await injectCustomFonts();
+  const customFontNames = await injectCustomFonts(generation);
 
   if (generation !== applyGeneration) {
     return;
@@ -274,6 +273,15 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 
   const hostname = window.location.hostname;
 
+  const globalChange = changes[GLOBAL_ENABLED_KEY];
+  if (globalChange?.newValue === false) {
+    // Invalidate reads already in progress as well as removing current CSS.
+    // Otherwise a slow font read can reinsert styles after this removal.
+    ++applyGeneration;
+    removeInjectedStyles();
+    return;
+  }
+
   const customFontsChanged =
     changes[CUSTOM_FONTS_KEY] ||
     changes[CUSTOM_FONT_INDEX_KEY] ||
@@ -283,13 +291,6 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
 
   if (customFontsChanged) {
     scheduleLoadAndApply(0);
-    return;
-  }
-
-  const globalChange = changes[GLOBAL_ENABLED_KEY];
-
-  if (globalChange?.newValue === false) {
-    removeInjectedStyles();
     return;
   }
 

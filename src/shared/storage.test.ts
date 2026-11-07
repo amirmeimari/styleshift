@@ -8,13 +8,22 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   clearHostSettings,
+  readGlobalFontStack,
+  readGlobalCSS,
+  readGlobalFontStackEntry,
+  readGlobalMonoFontStack,
+  readGlobalMonoFontStackEntry,
   readHostSettings,
   resolveHostSettings,
   updateHostSettings,
+  updateGlobalFontStack,
+  updateGlobalCSS,
+  updateGlobalMonoFontStack,
   updateTypography,
 } from "./storage";
 import {
   AUTO_ENABLE_ALL_SITES_KEY,
+  TYPOGRAPHY_KEY,
   DEFAULT_SETTINGS,
   isPreActivatedHost,
 } from "./style-core";
@@ -206,7 +215,45 @@ describe("updateHostSettings / clearHostSettings round-trip", () => {
   });
 });
 
+describe("global and site CSS storage", () => {
+  it("keeps the independent global key when a site is edited and reset", async () => {
+    await updateGlobalCSS("body { color: blue; }");
+    await updateHostSettings("example.org", {
+      ...DEFAULT_SETTINGS,
+      customCSS: "body { color: red; }",
+      cssEnabled: false,
+      includeSubdomains: false,
+    });
+
+    expect(await readGlobalCSS()).toBe("body { color: blue; }");
+    expect((await readHostSettings("example.org")).customCSS).toBe(
+      "body { color: red; }",
+    );
+    await clearHostSettings("example.org");
+    expect(await readGlobalCSS()).toBe("body { color: blue; }");
+    expect((await readHostSettings("example.org")).customCSS).toBe("");
+  });
+});
+
 describe("updateTypography", () => {
+  it("preserves fields changed by a backup import or another extension page", async () => {
+    await updateTypography({ lineHeight: 1.5 });
+    await chrome.storage.local.set({
+      [TYPOGRAPHY_KEY]: {
+        lineHeight: 2,
+        letterSpacing: 0.1,
+        fontWeight: 700,
+        minFontSize: 18,
+      },
+    });
+    expect(await updateTypography({ minFontSize: 20 })).toEqual({
+      lineHeight: 2,
+      letterSpacing: 0.1,
+      fontWeight: 700,
+      minFontSize: 20,
+    });
+  });
+
   it("does not lose a field from a concurrent update to a different field", async () => {
     // Two overlapping calls (e.g. dragging one slider right after another,
     // both firing before the first write lands) each read-modify-write the
@@ -224,5 +271,38 @@ describe("updateTypography", () => {
       fontWeight: null,
       minFontSize: null,
     });
+  });
+});
+
+describe("global ordered font stacks", () => {
+  it("distinguishes an absent legacy key from an explicitly empty stack", async () => {
+    expect(await readGlobalFontStackEntry()).toEqual({
+      value: [],
+      exists: false,
+    });
+    await updateGlobalFontStack([]);
+    expect(await readGlobalFontStackEntry()).toEqual({
+      value: [],
+      exists: true,
+    });
+
+    await updateGlobalMonoFontStack([]);
+    expect(await readGlobalMonoFontStackEntry()).toEqual({
+      value: [],
+      exists: true,
+    });
+  });
+
+  it("round-trips text fallbacks without reordering them", async () => {
+    const stack = ["Inter", "Vazirmatn", "Noto Sans"];
+    await updateGlobalFontStack(stack);
+    expect(await readGlobalFontStack()).toEqual(stack);
+  });
+
+  it("keeps the code font in its separate global stack", async () => {
+    await updateGlobalFontStack(["Inter", "Vazirmatn"]);
+    await updateGlobalMonoFontStack(["JetBrains Mono"]);
+    expect(await readGlobalFontStack()).toEqual(["Inter", "Vazirmatn"]);
+    expect(await readGlobalMonoFontStack()).toEqual(["JetBrains Mono"]);
   });
 });

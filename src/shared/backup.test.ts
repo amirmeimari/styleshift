@@ -255,3 +255,158 @@ describe("backupFilename", () => {
     );
   });
 });
+
+it.each(["woff2", "woff", "ttf", "otf"])(
+  "restores absent or empty MIME metadata for %s and preserves legacy MIME",
+  (format) => {
+    const font = { id: "missing", name: "Test Font", format, data: "AAEC" };
+    const legacyMime = "application/octet-stream";
+    const result = parseBackup(
+      JSON.stringify({
+        ...makeBackup(),
+        fonts: [
+          font,
+          { ...font, id: "empty", mimeType: "" },
+          { ...font, id: "legacy", mimeType: legacyMime },
+        ],
+      }),
+    );
+    if (!result.ok) throw new Error(result.error);
+    expect(result.warnings).toEqual([]);
+    expect(result.backup.fonts).toEqual([
+      { ...font, mimeType: `font/${format}` },
+      { ...font, id: "empty", mimeType: `font/${format}` },
+      { ...font, id: "legacy", mimeType: legacyMime },
+    ]);
+  },
+);
+
+it("does not let MIME fallback bypass other backup validation", () => {
+  const font = {
+    id: "valid",
+    name: "Test Font",
+    format: "woff2",
+    data: "AAEC",
+  };
+  const result = parseBackup(
+    JSON.stringify({
+      ...makeBackup(),
+      sites: { __styleshift_enabled__: { fontEnabled: true } },
+      fonts: [
+        font,
+        { ...font, id: "unsupported", format: "eot" },
+        {
+          ...font,
+          id: "prototype-format",
+          format: "constructor",
+          mimeType: "",
+        },
+        { ...font, id: "bad-data", data: "invalid!" },
+        { ...font, id: "oversized", data: "AAAA".repeat(1_748_000) },
+        { ...font, id: "bad-type", mimeType: null },
+        { ...font, id: "" },
+      ],
+    }),
+  );
+  if (!result.ok) throw new Error(result.error);
+  expect(result.backup.fonts).toEqual([{ ...font, mimeType: "font/woff2" }]);
+  expect(result.backup.sites).toEqual({});
+  expect(result.warnings.some((warning) => warning.includes("6 font"))).toBe(
+    true,
+  );
+});
+
+it("rejects explicit non-string MIME metadata instead of treating it as missing", () => {
+  const font = {
+    id: "missing",
+    name: "Review Font",
+    format: "WOFF2",
+    data: "AP+ADQo=",
+  };
+  const malformed = [null, false, true, 0, 1, [], {}, ["font/woff2"]];
+  const result = parseBackup(
+    JSON.stringify({
+      ...makeBackup(),
+      fonts: [
+        font,
+        ...malformed.map((mimeType, index) => ({
+          ...font,
+          id: `malformed-${index}`,
+          mimeType,
+        })),
+        { ...font, id: "empty", mimeType: "" },
+      ],
+    }),
+  );
+  if (!result.ok) throw new Error(result.error);
+  expect(result.backup.fonts).toEqual([
+    { ...font, format: "woff2", mimeType: "font/woff2" },
+    { ...font, id: "empty", format: "woff2", mimeType: "font/woff2" },
+  ]);
+  expect(result.warnings).toEqual([
+    "8 font(s) were invalid or exceeded the size limit and were dropped.",
+  ]);
+});
+
+it("keeps rejecting malformed payloads when MIME metadata is absent", () => {
+  const font = { id: "valid", name: "Review Font", format: "woff" };
+  const malformed = [
+    "",
+    null,
+    123,
+    [],
+    "AA EC",
+    "AAEC\n",
+    "data:font/woff;base64,AAEC",
+    "AA-_",
+  ];
+  const result = parseBackup(
+    JSON.stringify({
+      ...makeBackup(),
+      fonts: [
+        ...malformed.map((data, index) => ({
+          ...font,
+          id: `malformed-${index}`,
+          data,
+        })),
+        { ...font, data: "AAEC" },
+      ],
+    }),
+  );
+  if (!result.ok) throw new Error(result.error);
+  expect(result.backup.fonts).toEqual([
+    { ...font, data: "AAEC", mimeType: "font/woff" },
+  ]);
+  expect(result.warnings).toEqual([
+    "8 font(s) were invalid or exceeded the size limit and were dropped.",
+  ]);
+});
+
+it("counts MIME-fallback fonts toward the aggregate size limit and retains later fitting peers", () => {
+  // Four payloads just below 5 MiB leave eight bytes in the 20 MiB budget.
+  const data = "AAAA".repeat(1_747_626);
+  const font = { name: "Review Font", format: "ttf", data };
+  const largeFonts = Array.from({ length: 4 }, (_, index) => ({
+    ...font,
+    id: `large-${index}`,
+    ...(index % 2 ? { mimeType: "" } : {}),
+  }));
+  const result = parseBackup(
+    JSON.stringify({
+      ...makeBackup(),
+      fonts: [
+        ...largeFonts,
+        { ...font, id: "over-total", data: "AAAA".repeat(3) },
+        { ...font, id: "fits-after-drop", data: "AAEC" },
+      ],
+    }),
+  );
+  if (!result.ok) throw new Error(result.error);
+  expect(result.backup.fonts).toEqual([
+    ...largeFonts.map((entry) => ({ ...entry, mimeType: "font/ttf" })),
+    { ...font, id: "fits-after-drop", data: "AAEC", mimeType: "font/ttf" },
+  ]);
+  expect(result.warnings).toEqual([
+    "1 font(s) were invalid or exceeded the size limit and were dropped.",
+  ]);
+});

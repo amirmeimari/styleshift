@@ -522,8 +522,15 @@ export function isInjectableUrl(url?: string): boolean {
   }
 
   try {
-    const protocol = new URL(url).protocol;
-    return protocol === "http:" || protocol === "https:";
+    const parsed = new URL(url);
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:")
+      return false;
+    // Chrome protects both Web Store domains (including subdomains) from
+    // extension scripting even though they use ordinary HTTPS URLs.
+    const host = parsed.hostname.replace(/\.$/, "");
+    return !["chrome.google.com", "chromewebstore.google.com"].some(
+      (domain) => host === domain || host.endsWith(`.${domain}`),
+    );
   } catch {
     return false;
   }

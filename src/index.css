@@ -1,26 +1,19 @@
-/* Self-hosted UI fonts. Nunito Sans covers the Latin UI, Vazirmatn covers
-   Arabic/Farsi. Both ship in public/fonts/ui - StyleShift makes no font
-   requests to any remote host. */
+/* Self-hosted UI fonts. Inter covers Latin; Vazirmatn supplies Persian/Arabic.
+   The packaged Inter subset has static 400/700 faces; intermediate CSS weights
+   use normal browser matching. Other scripts fall back to system fonts. */
 @font-face {
-  font-family: "Nunito Sans";
+  font-family: "Inter";
   font-weight: 400;
   font-style: normal;
   font-display: swap;
-  src: url("/fonts/ui/nunito-sans-400.woff2") format("woff2");
+  src: url("/fonts/library/inter-400.woff2") format("woff2");
 }
 @font-face {
-  font-family: "Nunito Sans";
-  font-weight: 600;
-  font-style: normal;
-  font-display: swap;
-  src: url("/fonts/ui/nunito-sans-600.woff2") format("woff2");
-}
-@font-face {
-  font-family: "Nunito Sans";
+  font-family: "Inter";
   font-weight: 700;
   font-style: normal;
   font-display: swap;
-  src: url("/fonts/ui/nunito-sans-700.woff2") format("woff2");
+  src: url("/fonts/library/inter-700.woff2") format("woff2");
 }
 @font-face {
   font-family: "Vazirmatn";
@@ -62,159 +55,205 @@
   src: url("/fonts/library/jetbrains-mono-700.woff2") format("woff2");
 }
 
+/* The popup's pairing/library specimens are real previews. These are the
+   same packaged files injected into styled pages, declared locally here so
+   choosing a bundled face visibly changes the preview without any network
+   request. */
+@font-face {
+  font-family: "Roboto";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/library/roboto-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Roboto";
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/library/roboto-700.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Open Sans";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/library/open-sans-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Open Sans";
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/library/open-sans-700.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Lato";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/library/lato-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Lato";
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/library/lato-700.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Poppins";
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/library/poppins-400.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Poppins";
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url("/fonts/library/poppins-700.woff2") format("woff2");
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+.styleshift-css-editor.min-h-\[200px\] .cm-editor,
+.styleshift-css-editor.min-h-\[200px\] .cm-scroller,
+.styleshift-css-editor.min-h-\[200px\] .cm-content {
+  --styleshift-editor-min-height: 200px;
+}
+.styleshift-css-editor.min-h-\[240px\] .cm-editor,
+.styleshift-css-editor.min-h-\[240px\] .cm-scroller,
+.styleshift-css-editor.min-h-\[240px\] .cm-content {
+  --styleshift-editor-min-height: 240px;
+}
+.styleshift-css-editor.min-h-\[200px\] .cm-scroller,
+.styleshift-css-editor.min-h-\[240px\] .cm-scroller {
+  max-height: 65vh;
+}
+
 @layer base {
   :root {
-    color-scheme: light dark;
+    color-scheme: light;
+    --switch-off: #686b76;
 
-    --background: 34 38% 87%;
-    --foreground: 24 25% 15%;
-    --card: 33 30% 81%;
-    --card-foreground: 24 25% 15%;
-    --popover: 34 32% 85%;
-    --popover-foreground: 24 25% 15%;
-    --primary: 215 37% 28%;
-    --primary-foreground: 36 50% 95%;
-    --secondary: 33 30% 81%;
-    --secondary-foreground: 24 25% 15%;
-    --muted: 30 15% 72%;
-    --muted-foreground: 27 14% 48%;
-    --accent: 32 25% 68%;
-    --accent-foreground: 24 25% 15%;
-    --destructive: 9 36% 53%;
-    --destructive-foreground: 12 100% 97%;
-    --border: 28 24% 67%;
-    --input: 28 24% 67%;
-    --ring: 215 37% 28%;
-    --radius: 0.625rem;
+    --background: 60 17% 98%;
+    --foreground: 228 7% 14%;
+    --card: 0 0% 100%;
+    --card-foreground: 228 7% 14%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 228 7% 14%;
+    --primary: 230 91% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 60 5% 94%;
+    --secondary-foreground: 228 7% 18%;
+    --muted: 60 5% 94%;
+    --muted-foreground: 225 7% 43%;
+    --accent: 225 100% 96%;
+    --accent-foreground: 230 76% 45%;
+    --destructive: 0 72% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 60 4% 89%;
+    --input: 60 4% 89%;
+    --ring: 230 91% 58%;
+    --radius: 0.5rem;
 
-    --fabric-stitch: #a38362;
-    --fabric-canvas: #efe3cf;
-    --fabric-linen: #e4d3bb;
-    --fabric-panel: #f5ede0;
-    --fabric-tab-inactive: #d3be9f;
-    --fabric-tab-inactive-fg: #7a6a58;
+    /* Compatibility aliases keep later-ticket and options surfaces neutral
+       while the remaining fabric-named call sites are migrated. */
+    --fabric-stitch: #e5e5e3;
+    --fabric-canvas: #fafaf8;
+    --fabric-linen: #f3f3f1;
+    --fabric-panel: #ffffff;
+    --fabric-tab-inactive: transparent;
+    --fabric-tab-inactive-fg: #666872;
 
-    --fabric-denim: #2d4263;
-    --fabric-denim-border: #1d2f4a;
-    --fabric-olive: #7a7d52;
-    --fabric-olive-border: #5d6040;
-    --fabric-terracotta: #b66e5a;
-    --fabric-terracotta-border: #8f4b3c;
-    /* Badge/button fill for olive and terracotta. Same as the base color in
-       light mode; the dark .dark block below gives these their own darker
-       value, because the base color there has to stay bright for its other
-       job as syntax-highlighting text (see the note in .dark). */
-    --fabric-olive-fill: #7a7d52;
-    --fabric-terracotta-fill: #b66e5a;
-    --fabric-mustard: #d4a74e;
-    --fabric-mustard-border: #a87f2f;
-    --fabric-leather: #7a5538;
-    --fabric-leather-border: #4f3522;
-    --fabric-red-thread: #a04a42;
-    --fabric-blue-thread: #3d5b8b;
-    --fabric-blue-thread-border: #2c456e;
-    --fabric-green-thread: #5c7d58;
+    --fabric-denim: #3455f5;
+    --fabric-denim-border: #2847dd;
+    --fabric-olive: #3455f5;
+    --fabric-olive-border: #2847dd;
+    --fabric-olive-fill: #3455f5;
+    --fabric-terracotta: #dc2626;
+    --fabric-terracotta-border: #b91c1c;
+    --fabric-terracotta-fill: #dc2626;
+    --fabric-mustard: #f3f3f1;
+    --fabric-mustard-border: #e5e5e3;
+    --fabric-leather: #3f4654;
+    --fabric-leather-border: #303642;
+    --fabric-red-thread: #dc2626;
+    --fabric-blue-thread: #3455f5;
+    --fabric-blue-thread-border: #2847dd;
+    --fabric-green-thread: #16845b;
 
-    /* Text sitting on a saturated accent fill - same role in both themes. */
-    --fabric-on-denim: #f8f3ea;
-    --fabric-on-terracotta: #fff6f2;
-    --fabric-on-olive: #f5f1e8;
-    --fabric-on-mustard: #3e2e16;
-    --fabric-on-leather: #f8f2e8;
+    --fabric-on-denim: #ffffff;
+    --fabric-on-terracotta: #ffffff;
+    --fabric-on-olive: #ffffff;
+    --fabric-on-mustard: #202125;
+    --fabric-on-leather: #ffffff;
 
-    /* Shared rgb triplets behind the many `rgba(…, <alpha>)` shadows and
-       highlights scattered across components - one place to repoint the hue
-       per theme while every call site keeps its own alpha. */
-    --fabric-shadow-rgb: 68, 42, 22;
+    --fabric-shadow-rgb: 32, 33, 37;
     --fabric-sheen-rgb: 255, 255, 255;
     --fabric-press-rgb: 0, 0, 0;
-
-    --fabric-weave-warp: rgba(120, 90, 55, 0.06);
-    --fabric-weave-weft: rgba(255, 250, 240, 0.1);
   }
 
   .dark {
     color-scheme: dark;
 
-    /* Re-tuned for comfortable, accessible contrast (WCAG ratios computed
-       against this exact palette, not eyeballed): body text sits around
-       9-11:1 rather than the previous ~13.5:1, which read as glare on such a
-       dark ground; every surface (background/card/popover/muted/accent) gets
-       its own step so panels read as raised instead of blending together;
-       and border/input jump from ~1.6:1 (functionally invisible) to ~3-4:1
-       so component edges are actually visible. */
-    --background: 27 12% 9%;
-    --foreground: 36 20% 80%;
-    --card: 26 13% 16%;
-    --card-foreground: 36 20% 80%;
-    --popover: 26 13% 19%;
-    --popover-foreground: 36 20% 80%;
-    --primary: 215 45% 64%;
-    --primary-foreground: 24 25% 12%;
-    --secondary: 26 12% 22%;
-    --secondary-foreground: 36 20% 80%;
-    --muted: 26 11% 25%;
-    --muted-foreground: 30 12% 68%;
-    --accent: 27 13% 31%;
-    --accent-foreground: 36 20% 80%;
-    --destructive: 9 45% 58%;
-    --destructive-foreground: 12 100% 97%;
-    --border: 27 10% 46%;
-    --input: 27 10% 46%;
-    --ring: 215 45% 64%;
+    --background: 228 8% 10%;
+    --foreground: 60 9% 92%;
+    --card: 225 7% 14%;
+    --card-foreground: 60 9% 92%;
+    --popover: 225 7% 16%;
+    --popover-foreground: 60 9% 92%;
+    --primary: 225 100% 70%;
+    --primary-foreground: 228 8% 10%;
+    --secondary: 225 6% 20%;
+    --secondary-foreground: 60 9% 92%;
+    --muted: 225 6% 20%;
+    --muted-foreground: 225 7% 68%;
+    --accent: 226 32% 23%;
+    --accent-foreground: 225 100% 82%;
+    --destructive: 0 72% 62%;
+    --destructive-foreground: 228 8% 10%;
+    --border: 225 6% 27%;
+    --input: 225 6% 27%;
+    --ring: 225 100% 70%;
 
-    --fabric-stitch: #6f5942;
-    --fabric-canvas: #1a1714;
-    --fabric-linen: #37302a;
-    --fabric-panel: #2e2823;
-    --fabric-tab-inactive: #302a24;
-    --fabric-tab-inactive-fg: #a19487;
+    --fabric-stitch: #41434a;
+    --fabric-canvas: #18191d;
+    --fabric-linen: #26272d;
+    --fabric-panel: #222328;
+    --fabric-tab-inactive: transparent;
+    --fabric-tab-inactive-fg: #a8aab3;
 
-    /* fabric-denim/olive/terracotta double as syntax-highlighting text color
-       in the CSS editor (see css-editor-theme.ts) - a role that needs them
-       bright against the card. That's in tension with badge/button/switch
-       fills, which need to stay dark enough for the near-white --fabric-on-*
-       text on top of them to read clearly. Denim's fill already works for
-       both, but olive and terracotta don't - hence the dedicated *-fill
-       tokens below, used only for those filled surfaces, while the base
-       color keeps serving as text/ink. */
-    --fabric-denim: #4a6b9c;
-    --fabric-denim-border: #7192c5;
-    --fabric-olive: #8f9463;
-    --fabric-olive-border: #d2d9bf;
-    --fabric-olive-fill: #667048;
-    --fabric-terracotta: #c47f68;
-    --fabric-terracotta-border: #e3c1b5;
-    --fabric-terracotta-fill: #a45c46;
-    --fabric-mustard: #d9ae5c;
-    --fabric-mustard-border: #f0c67e;
-    --fabric-leather: #b88661;
-    --fabric-leather-border: #d2a989;
-    --fabric-red-thread: #cc7970;
-    --fabric-blue-thread: #7192c5;
-    --fabric-blue-thread-border: #a9c1e6;
-    --fabric-green-thread: #7ba173;
+    --fabric-denim: #7188ff;
+    --fabric-denim-border: #8fa0ff;
+    --fabric-olive: #7188ff;
+    --fabric-olive-border: #8fa0ff;
+    --fabric-olive-fill: #7188ff;
+    --fabric-terracotta: #f87171;
+    --fabric-terracotta-border: #fca5a5;
+    --fabric-terracotta-fill: #ef4444;
+    --fabric-mustard: #303139;
+    --fabric-mustard-border: #41434a;
+    --fabric-leather: #c7cad4;
+    --fabric-leather-border: #d9dbe3;
+    --fabric-red-thread: #f87171;
+    --fabric-blue-thread: #8fa0ff;
+    --fabric-blue-thread-border: #aab6ff;
+    --fabric-green-thread: #5ee0ad;
 
-    --fabric-on-denim: #f8f3ea;
-    --fabric-on-terracotta: #fff6f2;
-    --fabric-on-olive: #f5f1e8;
-    --fabric-on-mustard: #2a1e0c;
-    --fabric-on-leather: #f8f2e8;
+    --fabric-on-denim: #15161a;
+    --fabric-on-terracotta: #15161a;
+    --fabric-on-olive: #15161a;
+    --fabric-on-mustard: #ecece8;
+    --fabric-on-leather: #15161a;
 
-    /* Ambient shadow turns neutral black on a dark ground - a warm brown
-       shadow would read as a stray light leak rather than depth. The white
-       sheen highlight is left as-is; it still reads as a bevel, just dimmer
-       against the darker ground behind it. */
     --fabric-shadow-rgb: 0, 0, 0;
     --fabric-sheen-rgb: 255, 255, 255;
     --fabric-press-rgb: 0, 0, 0;
-
-    --fabric-weave-warp: rgba(0, 0, 0, 0.22);
-    --fabric-weave-weft: rgba(255, 245, 230, 0.03);
   }
 }
 
@@ -225,7 +264,7 @@
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: "Nunito Sans", "Vazirmatn", system-ui, sans-serif;
+    font-family: "Inter", "Vazirmatn", system-ui, sans-serif;
   }
 
   h1,
@@ -234,35 +273,22 @@
   h4,
   h5,
   h6 {
-    font-family: "Nunito Sans", "Vazirmatn", system-ui, sans-serif;
+    font-family: "Inter", "Vazirmatn", system-ui, sans-serif;
   }
 
   html.styleshift-popup-page,
   body.styleshift-popup-page {
+    /* Chrome sizes action popups from intrinsic content. A 100vw cap can
+       feed its initial tiny viewport back into the preferred width. */
+    width: 420px;
+    min-width: 420px;
     overflow: hidden;
-  }
-
-  /* The logo's denim-blue and terracotta letterforms are both dark enough to
-     sink into a dark ground; lift them instead of shipping a second asset. */
-  .dark img[alt="StyleShift"] {
-    filter: brightness(1.8) saturate(1.05);
   }
 }
 
 @layer utilities {
   .fabric-weave {
-    background-image:
-      repeating-linear-gradient(
-        90deg,
-        var(--fabric-weave-warp) 0 1px,
-        transparent 1px 4px
-      ),
-      repeating-linear-gradient(
-        0deg,
-        var(--fabric-weave-weft) 0 1px,
-        transparent 1px 4px
-      );
-    background-size: 4px 4px;
+    background-image: none;
   }
 
   .fabric-stitch {
@@ -270,13 +296,7 @@
   }
 
   .fabric-stitch::before {
-    content: "";
-    position: absolute;
-    inset: 5px;
-    border: 1.3px dashed var(--fabric-stitch);
-    border-radius: calc(var(--radius) - 2px);
-    opacity: 0.55;
-    pointer-events: none;
+    content: none;
   }
 
   .fabric-stitch-sm {
@@ -284,13 +304,7 @@
   }
 
   .fabric-stitch-sm::before {
-    content: "";
-    position: absolute;
-    inset: 3px;
-    border: 1px dashed var(--fabric-stitch);
-    border-radius: calc(var(--radius) - 4px);
-    opacity: 0.45;
-    pointer-events: none;
+    content: none;
   }
 
   .fabric-stitch-pill {
@@ -298,26 +312,15 @@
   }
 
   .fabric-stitch-pill::before {
-    content: "";
-    position: absolute;
-    inset: 3px;
-    border: 1px dashed var(--fabric-stitch);
-    border-radius: 999px;
-    opacity: 0.5;
-    pointer-events: none;
+    content: none;
   }
 
   .fabric-separator {
     height: 1px;
-    background: repeating-linear-gradient(
-      90deg,
-      var(--fabric-stitch) 0 5px,
-      transparent 5px 10px
-    );
-    opacity: 0.5;
+    background: hsl(var(--border));
   }
 
   .font-display {
-    font-family: "Nunito Sans", "Vazirmatn", system-ui, sans-serif;
+    font-family: "Inter", "Vazirmatn", system-ui, sans-serif;
   }
 }

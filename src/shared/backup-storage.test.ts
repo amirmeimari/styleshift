@@ -5,7 +5,8 @@
 
 import { beforeEach, describe, expect, it } from "vitest";
 import { applyBackup, collectBackup } from "./backup-storage";
-import { buildBackup } from "./backup";
+import exactQABackup from "../../docs/redesign/evidence/popup-font-qa/baseline-backup.json?raw";
+import { buildBackup, parseBackup, type StyleShiftBackup } from "./backup";
 import {
   CUSTOM_FONT_INDEX_KEY,
   DEFAULT_SETTINGS,
@@ -269,3 +270,65 @@ describe("applyBackup - replace mode", () => {
     expect(stored).not.toHaveProperty(GLOBAL_ENABLED_KEY);
   });
 });
+
+it.each(["merge", "replace"] as const)(
+  "restores the exact QA-PF1 backup with %s and preserves bytes and order",
+  async (mode) => {
+    const original: StyleShiftBackup = JSON.parse(exactQABackup);
+    if (!original.fonts) throw new Error("Expected fonts in QA fixture");
+    const fields = ({
+      id,
+      name,
+      format,
+      mimeType,
+      data,
+    }: NonNullable<StyleShiftBackup["fonts"]>[number]) => ({
+      id,
+      name,
+      format,
+      mimeType,
+      data,
+    });
+    const expectedFonts = original.fonts
+      .map(fields)
+      .map((font) =>
+        font.id === "qa-glyph-vazirmatn"
+          ? { ...font, mimeType: "font/woff2" }
+          : font,
+      );
+    expect(
+      original.fonts?.find((font) => font.id === "qa-glyph-vazirmatn")
+        ?.mimeType,
+    ).toBe("");
+    const woff2 = atob(
+      original.fonts.find((font) => font.id === "qa-glyph-vazirmatn")!.data,
+    );
+    expect(woff2.length).toBe(21_088);
+    const parsed = parseBackup(exactQABackup);
+    if (!parsed.ok) throw new Error(parsed.error);
+    expect(parsed.warnings).toEqual([]);
+    expect(parsed.backup.fonts).toEqual(expectedFonts);
+
+    const existing = {
+      id: "unrelated",
+      name: "Unrelated font",
+      format: "woff2",
+      mimeType: "font/woff2",
+      data: "AAAA",
+    };
+    await updateCustomFont(existing);
+    const report = await applyBackup(parsed.backup, mode);
+    expect(report.fontsWritten).toBe(5);
+    expect(report.sitesWritten).toBe(3);
+    const restored = await collectBackup(true);
+    expect(restored.fonts?.map(fields)).toEqual(
+      mode === "merge" ? [existing, ...expectedFonts] : expectedFonts,
+    );
+    expect(restored.globals.fontStack).toEqual(original.globals.fontStack);
+    expect(restored.globals.monoFontStack).toEqual(
+      original.globals.monoFontStack,
+    );
+    expect(restored.globals).toEqual(original.globals);
+    expect(restored.sites).toEqual(original.sites);
+  },
+);

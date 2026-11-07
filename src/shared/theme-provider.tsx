@@ -67,6 +67,33 @@ export function ThemeProvider({
   }, []);
 
   useEffect(() => {
+    const iconVariant = resolvedTheme === "dark" ? "light" : "dark";
+    const favicon = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+    if (favicon) {
+      favicon.href = `/icons/${iconVariant}/icon32.png`;
+    }
+    // Extension pages can observe the OS theme; the MV3 worker cannot.
+    // Refresh the toolbar when a page opens, preferences change, or System
+    // mode changes while a page is open. No extra permissions are needed.
+    if (typeof chrome !== "undefined" && chrome.action?.setIcon) {
+      void chrome.action
+        .setIcon({
+          path: {
+            16: `icons/${iconVariant}/icon16.png`,
+            24: `icons/${iconVariant}/icon24.png`,
+            32: `icons/${iconVariant}/icon32.png`,
+            48: `icons/${iconVariant}/icon48.png`,
+            64: `icons/${iconVariant}/icon64.png`,
+            128: `icons/${iconVariant}/icon128.png`,
+          },
+        })
+        .catch(() => {
+          // Keep the manifest fallback if the extension context was closed.
+        });
+    }
+  }, [resolvedTheme]);
+
+  useEffect(() => {
     let mounted = true;
 
     const initial = initialTheme
@@ -96,6 +123,9 @@ export function ThemeProvider({
         if (isThemePref(next)) {
           setThemeState(next);
           applyTheme(next);
+        } else if (next === undefined) {
+          setThemeState(DEFAULT_THEME);
+          applyTheme(DEFAULT_THEME);
         }
       },
       [applyTheme],

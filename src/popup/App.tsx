@@ -1,37 +1,32 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import {
-  Braces,
+  ArrowLeft,
   ChevronsUpDown,
   Check,
+  CheckCircle2,
+  ChevronRight,
   Copy,
   ExternalLink,
-  FileCode2,
+  Globe2,
   Info,
   Moon,
   RotateCcw,
   Save,
+  Search,
   Settings,
   Sun,
   SunMoon,
   Trash2,
-  Type,
-  Upload,
-  WandSparkles,
-  X,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { BrandIcon } from "@/components/brand-icon";
 import { Card, CardContent } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
 import { CustomFontManager } from "@/components/custom-font-manager";
+import { FontPairing } from "@/components/font-pairing";
 import { FontStatusDot } from "@/components/font-status-dot";
-import { HelpTooltip, LabelWithHelp } from "@/components/help";
+import { HelpTooltip } from "@/components/help";
 import { useI18n } from "@/shared/i18n/use-i18n";
-import {
-  BUILTIN_FONTS,
-  BUILTIN_MONO_FONT_NAMES,
-  BUILTIN_SANS_FONT_NAMES,
-} from "@/shared/builtin-fonts";
+import { BUILTIN_FONTS, BUILTIN_MONO_FONT_NAMES } from "@/shared/builtin-fonts";
 import {
   Command,
   CommandEmpty,
@@ -41,6 +36,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { SegmentedControl } from "@/components/ui/segmented-control";
 import { LOCALES } from "@/shared/i18n/locales";
 import type { ThemePref } from "@/shared/theme";
@@ -63,13 +59,14 @@ import {
   POPULAR_SITE_PRESETS,
   TYPOGRAPHY_RANGES,
   clearHostSettings,
+  customFontFaces,
   getActiveTab,
   getHostname,
-  getMainDomain,
   hostMatchesPreset,
-  parseFontStack,
+  isInjectableUrl,
   readAutoEnableAllSites,
   readCustomFonts,
+  readGlobalCSS,
   readGlobalEnabled,
   readGlobalFontStack,
   readGlobalMonoFontStack,
@@ -79,6 +76,7 @@ import {
   resolveHostSettings,
   serializeFontStack,
   updateAutoEnableAllSites,
+  updateGlobalCSS,
   updateGlobalEnabled,
   updateGlobalFontStack,
   updateGlobalMonoFontStack,
@@ -86,6 +84,15 @@ import {
   updateTypography,
 } from "@/shared/styleshift";
 import { formatCSS } from "@/css-editor/format-css";
+import {
+  createCssDrafts,
+  discardCssDraft,
+  isCssDraftDirty,
+  markCssSaved,
+  replaceCssScope,
+  updateCssDraft,
+  type CssScope,
+} from "./css-workflow";
 // CodeMirror is by far the largest dependency in the popup and only the CSS
 // tab needs it, so it is split into its own chunk and fetched on first use.
 // The chunk is served from the extension itself, so this costs no network.
@@ -97,18 +104,22 @@ const CssEditor = lazy(() =>
 
 type TabId = "fonts" | "upload" | "css" | "settings" | "about";
 
-const TABS: { id: TabId; icon: typeof Type; labelKey: string }[] = [
-  { id: "fonts", icon: Type, labelKey: "tabs.fonts" },
-  { id: "upload", icon: Upload, labelKey: "tabs.upload" },
-  { id: "css", icon: FileCode2, labelKey: "tabs.css" },
-  { id: "settings", icon: Settings, labelKey: "tabs.settings" },
-  { id: "about", icon: Info, labelKey: "tabs.about" },
+const PRIMARY_TABS: {
+  id: Exclude<TabId, "settings" | "about">;
+  labelKey: string;
+}[] = [
+  { id: "fonts", labelKey: "tabs.fonts" },
+  { id: "css", labelKey: "tabs.css" },
+  { id: "upload", labelKey: "tabs.library" },
 ];
 
-// Matches the preset grid's `grid-cols-9` below.
-const PRESET_COLUMN_COUNT = 9;
+// Seven columns keep every shortcut reachable without horizontal clipping in
+// the compact popup shell.
+const PRESET_COLUMN_COUNT = 7;
 
 type TypographyField = "lineHeight" | "letterSpacing" | "fontWeight";
+type FontView = "pairing" | "typography";
+type SaveState = "idle" | "saving" | "saved" | "error";
 
 // Shown on the slider while the field is unset (null), so dragging starts
 // from a sensible neutral position instead of jumping from the range's min.
@@ -166,8 +177,9 @@ export function App() {
   const { t, dir } = useI18n();
   const { theme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<TabId>("fonts");
+  const popupScrollRef = useRef<HTMLElement>(null);
   const tabRefs = useRef<Partial<Record<TabId, HTMLButtonElement | null>>>({});
-  // One stable setter per tab, created once - TABS is a static module-level
+  // One stable setter per tab, created once - PRIMARY_TABS is module-level
   // constant, so this never needs to change across renders. An inline
   // `ref={(el) => ...}` in the JSX below would instead reallocate on every
   // render of this always-mounted nav, including on every CSS-editor
@@ -175,7 +187,7 @@ export function App() {
   const tabRefSetters = useMemo(
     () =>
       Object.fromEntries(
-        TABS.map((tab) => [
+        PRIMARY_TABS.map((tab) => [
           tab.id,
           (el: HTMLButtonElement | null) => {
             tabRefs.current[tab.id] = el;
@@ -185,18 +197,28 @@ export function App() {
     [],
   );
   const [hostname, setHostname] = useState("");
-  const [pageName, setPageName] = useState("this page");
+  const [loaded, setLoaded] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [actionError, setActionError] = useState(false);
   const [fontFamily, setFontFamily] = useState(DEFAULT_SETTINGS.fontFamily);
   const [fontStack, setFontStack] = useState<string[]>([]);
-  const [fontDraft, setFontDraft] = useState("");
   // The raw family name ("Fira Code"), never the serialized CSS value
   // (`"Fira Code"` with quotes). Serialization happens only at the storage
   // boundary in persistMonoFont, so nothing renders stray quote marks.
   const [monoFont, setMonoFont] = useState(DEFAULT_SETTINGS.monoFontFamily);
   const [fontEnabled, setFontEnabled] = useState(DEFAULT_SETTINGS.fontEnabled);
   const [globalEnabled, setGlobalEnabled] = useState(true);
-  const [fontComboboxOpen, setFontComboboxOpen] = useState(false);
   const [monoFontComboboxOpen, setMonoFontComboboxOpen] = useState(false);
+  const [fontView, setFontView] = useState<FontView>("pairing");
+  const [fontSaveState, setFontSaveState] = useState<SaveState>("idle");
+  const fontSaveGeneration = useRef(0);
+  const fontStackGeneration = useRef(0);
+  const monoFontGeneration = useRef(0);
+  const typographyGeneration = useRef(0);
+  const persistedStack = useRef<string[]>([]);
+  const persistedMono = useRef("");
+  const persistedTypography = useRef(DEFAULT_TYPOGRAPHY);
+  const [librarySearch, setLibrarySearch] = useState("");
   const [customFonts, setCustomFonts] = useState<Record<string, CustomFont>>(
     {},
   );
@@ -210,9 +232,14 @@ export function App() {
   // its own record, anything else means it's inheriting from that ancestor.
   const [sourceHost, setSourceHost] = useState<string | null>(null);
   const [includeSubdomains, setIncludeSubdomains] = useState(true);
-  const [customCSS, setCustomCSS] = useState(DEFAULT_SETTINGS.customCSS);
-  const [savedCSS, setSavedCSS] = useState(DEFAULT_SETTINGS.customCSS);
-  const [isSaving, setIsSaving] = useState(false);
+  const [cssScope, setCssScope] = useState<CssScope>("site");
+  const [cssDrafts, setCssDrafts] = useState(() => createCssDrafts());
+  const [cssSaveStates, setCssSaveStates] = useState<
+    Record<CssScope, SaveState>
+  >({ site: "idle", global: "idle" });
+  const [cssCopyStates, setCssCopyStates] = useState<
+    Record<CssScope, "idle" | "copied" | "error">
+  >({ site: "idle", global: "idle" });
   const [autoEnableAllSites, setAutoEnableAllSites] = useState(false);
   const [typography, setTypography] =
     useState<TypographySettings>(DEFAULT_TYPOGRAPHY);
@@ -221,8 +248,18 @@ export function App() {
     () => Object.values(customFonts).map((font) => font.name),
     [customFonts],
   );
+  const customFontCss = useMemo(
+    () => customFontFaces(customFonts),
+    [customFonts],
+  );
+  const filteredBuiltinFonts = useMemo(() => {
+    const query = librarySearch.trim().toLocaleLowerCase();
+    return BUILTIN_FONTS.filter((font) =>
+      font.name.toLocaleLowerCase().includes(query),
+    );
+  }, [librarySearch]);
   const presetColumns = useMemo(() => {
-    // Matches the grid-cols-9 layout below. Round-robin (not a fixed-size
+    // Matches the seven-column layout below. Round-robin (not a fixed-size
     // slice per column) so every column stays populated regardless of the
     // preset count - a slice-based split leaves trailing columns empty
     // whenever the count isn't an exact multiple of PRESET_COLUMN_COUNT.
@@ -262,38 +299,35 @@ export function App() {
 
     async function loadSettings() {
       try {
-        const tab = await getActiveTab();
-        const host = getHostname(tab.url);
-
-        if (!host) {
-          return;
-        }
+        // Global font/library/preferences remain useful on restricted pages;
+        // only host-specific controls need an injectable http(s) tab.
+        const tab = await getActiveTab({ allowRestricted: true });
+        const host = isInjectableUrl(tab.url) ? getHostname(tab.url) : "";
 
         const [
           resolved,
           enabled,
-          globalFontStack,
-          globalMonoFontStack,
+          hydratedFontStack,
+          hydratedMonoFontStack,
           fonts,
           storedTypography,
+          storedGlobalCSS,
+          storedAutoEnable,
         ] = await Promise.all([
-          resolveHostSettings(host),
+          host ? resolveHostSettings(host) : Promise.resolve(null),
           readGlobalEnabled(),
           readGlobalFontStack(),
           readGlobalMonoFontStack(),
           readCustomFonts(),
           readTypography(),
+          readGlobalCSS(),
+          readAutoEnableAllSites(),
         ]);
-        const settings = resolved.settings;
-        const hydratedFontStack =
-          globalFontStack.length > 0
-            ? globalFontStack
-            : parseFontStack(settings.fontFamily);
+        const settings = resolved?.settings ?? DEFAULT_SETTINGS;
+        // Use the same shared readers as injection: absent keys mean no text
+        // override and the default code font; explicit [] means no override.
+        // Legacy host fields stay stored, but never select a shared pairing.
         const hydratedFontFamily = serializeFontStack(hydratedFontStack);
-        const hydratedMonoFontStack =
-          globalMonoFontStack.length > 0
-            ? globalMonoFontStack
-            : parseFontStack(settings.monoFontFamily);
         const hydratedMonoFont = hydratedMonoFontStack[0] ?? "";
         const presetEntries = await Promise.all(
           POPULAR_SITE_PRESETS.map(
@@ -310,34 +344,42 @@ export function App() {
         }
 
         setHostname(host);
-        setPageName(getMainDomain(host));
         setFontStack(hydratedFontStack);
+        persistedStack.current = hydratedFontStack;
         setFontFamily(hydratedFontFamily);
         setMonoFont(hydratedMonoFont);
+        persistedMono.current = hydratedMonoFont;
         setFontEnabled(settings.fontEnabled);
         setGlobalEnabled(enabled);
         setCustomFonts(fonts);
         setPresetStates(Object.fromEntries(presetEntries));
         setCssEnabled(settings.cssEnabled !== false);
-        setSourceHost(resolved.sourceHost);
+        setSourceHost(resolved?.sourceHost ?? null);
         setIncludeSubdomains(settings.includeSubdomains !== false);
-        setCustomCSS(settings.customCSS);
-        setSavedCSS(settings.customCSS);
+        setCssDrafts(createCssDrafts(settings.customCSS, storedGlobalCSS));
         setTypography(storedTypography);
+        persistedTypography.current = storedTypography;
+        setAutoEnableAllSites(storedAutoEnable);
+        setLoaded(true);
       } catch (error) {
         console.error(error);
+        if (mounted) setLoadError(true);
       }
     }
 
     loadSettings();
-    // chrome.storage is unavailable on non-injectable pages; without a catch
-    // this surfaces as an unhandled rejection in the console.
-    readAutoEnableAllSites().then(setAutoEnableAllSites).catch(console.error);
 
     return () => {
       mounted = false;
     };
   }, []);
+
+  // A disclosure button near the bottom can be auto-scrolled into view before
+  // its click fires. Reset the popup scroll after changing tabs/subviews so a
+  // newly opened screen always starts at its own heading.
+  useEffect(() => {
+    popupScrollRef.current?.scrollTo({ top: 0 });
+  }, [activeTab, fontView]);
 
   // Merges `patch` onto hostname's own record and persists + reinjects the
   // result. When hostname has no own record yet (it's inheriting from an
@@ -358,9 +400,17 @@ export function App() {
       resolved.sourceHost === hostname
         ? resolved.settings
         : { ...DEFAULT_SETTINGS, fontEnabled: resolved.settings.fontEnabled };
-    await updateHostSettings(hostname, { ...base, ...patch });
+    const next = { ...base, ...patch };
+    await updateHostSettings(hostname, next);
     // Writing here always materializes hostname's own record.
     setSourceHost(hostname);
+    setCssEnabled(next.cssEnabled !== false);
+    setIncludeSubdomains(next.includeSubdomains !== false);
+    setCssDrafts((drafts) =>
+      isCssDraftDirty(drafts, "site")
+        ? markCssSaved(drafts, "site", next.customCSS)
+        : replaceCssScope(drafts, "site", next.customCSS),
+    );
 
     try {
       const tab = await getActiveTab();
@@ -373,73 +423,74 @@ export function App() {
   }
 
   async function handleGlobalToggle(checked: boolean) {
+    const previous = globalEnabled;
+    setActionError(false);
     setGlobalEnabled(checked);
-    await updateGlobalEnabled(checked);
+    try {
+      await updateGlobalEnabled(checked);
+    } catch {
+      setGlobalEnabled(previous);
+      setActionError(true);
+    }
+  }
+
+  function beginFontSave(): number {
+    const generation = ++fontSaveGeneration.current;
+    setFontSaveState("saving");
+    return generation;
+  }
+
+  function finishFontSave(generation: number, state: SaveState) {
+    if (fontSaveGeneration.current === generation) {
+      setFontSaveState(state);
+    }
   }
 
   async function persistFontStack(nextFontStack: string[]) {
     const nextFontFamily = serializeFontStack(nextFontStack);
+    const stackGeneration = ++fontStackGeneration.current;
+    const generation = beginFontSave();
 
     setFontStack(nextFontStack);
     setFontFamily(nextFontFamily);
-    await updateGlobalFontStack(nextFontStack);
-
-    // Only mirror onto the host's own record when it already has one -
-    // content.ts overwrites fontFamily/monoFontFamily from the global stack
-    // unconditionally regardless (see loadAndApply), so this mirror only
-    // feeds the popup's own hydration fallback. Writing it for a host that
-    // currently inherits would fork it off its ancestor for no reason.
-    if (hostname && sourceHost === hostname) {
-      const hostSettings = await readHostSettings(hostname);
-      await updateHostSettings(hostname, {
-        ...hostSettings,
-        fontFamily: nextFontFamily,
-        monoFontFamily: serializeFontStack(monoFont ? [monoFont] : []),
-        fontEnabled,
-      });
-    }
-  }
-
-  async function addFontChip(fontName = fontDraft) {
-    const nextFont = fontName.trim().replace(/,/g, "");
-
-    if (!nextFont) {
+    try {
+      await updateGlobalFontStack(nextFontStack);
+      persistedStack.current = nextFontStack;
+    } catch (error) {
+      console.error("Error saving font stack:", error);
+      if (fontStackGeneration.current === stackGeneration) {
+        setFontStack(persistedStack.current);
+        setFontFamily(serializeFontStack(persistedStack.current));
+      }
+      finishFontSave(generation, "error");
       return;
     }
 
-    const alreadyExists = fontStack.some(
-      (font) => font.toLowerCase() === nextFont.toLowerCase(),
-    );
-
-    setFontDraft("");
-
-    if (alreadyExists) {
-      return;
-    }
-
-    await persistFontStack([...fontStack, nextFont]);
-  }
-
-  async function removeFontChip(fontToRemove: string) {
-    await persistFontStack(fontStack.filter((font) => font !== fontToRemove));
+    // The global key is authoritative for injection, hydration and backups.
+    // Mirroring it into a host record can restore a stale site enable flag
+    // after a concurrent toggle and is unnecessary once this key exists.
+    finishFontSave(generation, "saved");
   }
 
   async function persistMonoFont(nextFont: string) {
     const nextStack = nextFont ? [nextFont] : [];
+    const monoGeneration = ++monoFontGeneration.current;
+    const generation = beginFontSave();
 
     setMonoFont(nextFont);
-    await updateGlobalMonoFontStack(nextStack);
-
-    // See the matching comment in persistFontStack.
-    if (hostname && sourceHost === hostname) {
-      const hostSettings = await readHostSettings(hostname);
-      await updateHostSettings(hostname, {
-        ...hostSettings,
-        fontFamily,
-        monoFontFamily: serializeFontStack(nextStack),
-        fontEnabled,
-      });
+    try {
+      await updateGlobalMonoFontStack(nextStack);
+      persistedMono.current = nextFont;
+    } catch (error) {
+      console.error("Error saving code font:", error);
+      if (monoFontGeneration.current === monoGeneration) {
+        setMonoFont(persistedMono.current);
+      }
+      finishFontSave(generation, "error");
+      return;
     }
+
+    finishFontSave(generation, "saved");
   }
 
   async function chooseMonoFont(fontName: string) {
@@ -459,6 +510,9 @@ export function App() {
   }
 
   async function handleFontToggle(checked: boolean) {
+    const previous = fontEnabled;
+    const previousPresets = presetStates;
+    setActionError(false);
     setFontEnabled(checked);
     const matchedPreset = POPULAR_SITE_PRESETS.find((preset) =>
       hostMatchesPreset(hostname, preset.host),
@@ -471,78 +525,124 @@ export function App() {
       }));
     }
 
-    await saveAndInject({
-      fontFamily,
-      monoFontFamily: serializeFontStack(monoFont ? [monoFont] : []),
-      fontEnabled: checked,
-    });
+    try {
+      await saveAndInject({
+        fontEnabled: checked,
+      });
+    } catch {
+      setFontEnabled(previous);
+      setPresetStates(previousPresets);
+      setActionError(true);
+    }
   }
 
   async function handlePresetToggle(host: string) {
-    const current = presetStates[host] ?? true;
-    const next = !current;
-    // Start from the preset host's own record if it has one, never from
-    // whatever it currently inherits - spreading an inherited ancestor's
-    // settings here would copy that ancestor's CSS across a domain boundary.
-    const resolved = await resolveHostSettings(host);
-    const base =
-      resolved.sourceHost === host ? resolved.settings : DEFAULT_SETTINGS;
+    setActionError(false);
+    try {
+      const current = presetStates[host] ?? true;
+      const next = !current;
+      // Start from the preset host's own record if it has one, never from
+      // whatever it currently inherits - spreading an inherited ancestor's
+      // settings here would copy that ancestor's CSS across a domain boundary.
+      const resolved = await resolveHostSettings(host);
+      const base =
+        resolved.sourceHost === host ? resolved.settings : DEFAULT_SETTINGS;
 
-    await updateHostSettings(host, {
-      ...base,
-      fontFamily,
-      monoFontFamily: serializeFontStack(monoFont ? [monoFont] : []),
-      fontEnabled: next,
-    });
-
-    setPresetStates((previous) => ({ ...previous, [host]: next }));
-
-    if (!hostMatchesPreset(hostname, host)) {
-      return;
-    }
-
-    setFontEnabled(next);
-
-    if (host === hostname) {
-      // The write above just materialized hostname's own record.
-      setSourceHost(hostname);
-    } else if (sourceHost === hostname) {
-      // hostname already shadows this preset with its own record (e.g.
-      // "www.github.com" vs "github.com") - keep it in sync. Otherwise
-      // hostname now inherits the preset's new settings automatically, and
-      // writing here would fork it off unnecessarily.
-      const currentSettings = await readHostSettings(hostname);
-      await updateHostSettings(hostname, {
-        ...currentSettings,
-        fontFamily,
-        monoFontFamily: serializeFontStack(monoFont ? [monoFont] : []),
+      await updateHostSettings(host, {
+        ...base,
         fontEnabled: next,
       });
-    }
 
-    try {
-      const tab = await getActiveTab();
-      await requestReinject(tab.id);
-    } catch (error) {
-      console.error(error);
+      setPresetStates((previous) => ({ ...previous, [host]: next }));
+
+      if (!hostMatchesPreset(hostname, host)) {
+        return;
+      }
+
+      setFontEnabled(next);
+
+      if (host === hostname) {
+        // The write above just materialized hostname's own record.
+        setSourceHost(hostname);
+      } else if (sourceHost === hostname) {
+        // hostname already shadows this preset with its own record (e.g.
+        // "www.github.com" vs "github.com") - keep it in sync. Otherwise
+        // hostname now inherits the preset's new settings automatically, and
+        // writing here would fork it off unnecessarily.
+        const currentSettings = await readHostSettings(hostname);
+        await updateHostSettings(hostname, {
+          ...currentSettings,
+          fontEnabled: next,
+        });
+      }
+
+      try {
+        const tab = await getActiveTab();
+        await requestReinject(tab.id);
+      } catch (error) {
+        console.error(error);
+      }
+    } catch {
+      setActionError(true);
     }
   }
 
   async function persistTypography(
-    field: TypographyField,
+    field: keyof TypographySettings,
     value: number | null,
   ) {
     // Optimistic update - the storage.onChanged listener in content.ts
     // reapplies the page's styling on its own, so no reinject nudge is
     // needed here (same pattern as persistFontStack/persistMonoFont).
-    setTypography((previous) => ({ ...previous, [field]: value }));
-    const next = await updateTypography({ [field]: value });
-    setTypography(next);
+    const currentTypographyGeneration = ++typographyGeneration.current;
+    const generation = beginFontSave();
+    setTypography((current) => ({ ...current, [field]: value }));
+    try {
+      const next = await updateTypography({ [field]: value });
+      persistedTypography.current = next;
+      if (typographyGeneration.current === currentTypographyGeneration) {
+        setTypography(next);
+      }
+      finishFontSave(generation, "saved");
+    } catch (error) {
+      console.error("Error saving typography:", error);
+      if (typographyGeneration.current === currentTypographyGeneration) {
+        setTypography(persistedTypography.current);
+      }
+      finishFontSave(generation, "error");
+    }
+  }
+
+  async function resetTypography() {
+    const currentTypographyGeneration = ++typographyGeneration.current;
+    const generation = beginFontSave();
+    setTypography(DEFAULT_TYPOGRAPHY);
+    try {
+      const next = await updateTypography(DEFAULT_TYPOGRAPHY);
+      persistedTypography.current = next;
+      if (typographyGeneration.current === currentTypographyGeneration) {
+        setTypography(next);
+      }
+      finishFontSave(generation, "saved");
+    } catch (error) {
+      console.error("Error resetting typography:", error);
+      if (typographyGeneration.current === currentTypographyGeneration) {
+        setTypography(persistedTypography.current);
+      }
+      finishFontSave(generation, "error");
+    }
   }
 
   async function handleAutoEnableToggle(checked: boolean) {
+    const previous = autoEnableAllSites;
+    setActionError(false);
     setAutoEnableAllSites(checked);
-    await updateAutoEnableAllSites(checked);
+    try {
+      await updateAutoEnableAllSites(checked);
+    } catch {
+      setAutoEnableAllSites(previous);
+      setActionError(true);
+    }
   }
 
   async function reloadCustomFonts() {
@@ -551,51 +651,65 @@ export function App() {
   }
 
   async function handleCssEnabledToggle(checked: boolean) {
-    setCssEnabled(checked);
-
-    if (!hostname) {
-      return;
+    try {
+      await saveAndInject({
+        cssEnabled: checked,
+        customCSS: cssDrafts.site.saved,
+      });
+      setCssEnabled(checked);
+      setCssSaveStates((state) => ({ ...state, site: "saved" }));
+    } catch (error) {
+      console.error("Error toggling site CSS:", error);
+      setCssSaveStates((state) => ({ ...state, site: "error" }));
     }
-
-    await saveAndInject({ cssEnabled: checked });
   }
 
   async function handleSaveCSS() {
-    if (!hostname) return;
-
-    setIsSaving(true);
+    const scope = cssScope;
+    const value = cssDrafts[scope].draft;
+    if (scope === "site" && !hostname) return;
+    setCssSaveStates((state) => ({ ...state, [scope]: "saving" }));
     try {
-      // Persist exactly what the editor holds - formatting is the Format
-      // button's job, not an implicit side effect of saving.
-      await saveAndInject({ customCSS });
-      setSavedCSS(customCSS);
+      if (scope === "global") {
+        await updateGlobalCSS(value);
+      } else {
+        await saveAndInject({ customCSS: value });
+      }
+      setCssDrafts((drafts) => markCssSaved(drafts, scope, value));
+      setCssSaveStates((state) => ({ ...state, [scope]: "saved" }));
     } catch (error) {
       console.error("Error saving CSS:", error);
-    } finally {
-      setIsSaving(false);
+      setCssSaveStates((state) => ({ ...state, [scope]: "error" }));
     }
   }
 
   async function handleRemoveCSS() {
-    if (!hostname) return;
-
+    const scope = cssScope;
+    if (scope === "site" && !hostname) return;
+    setCssSaveStates((state) => ({ ...state, [scope]: "saving" }));
     try {
-      await saveAndInject({ customCSS: "" });
-      setCustomCSS("");
-      setSavedCSS("");
+      if (scope === "global") await updateGlobalCSS("");
+      else await saveAndInject({ customCSS: "" });
+      setCssDrafts((drafts) => replaceCssScope(drafts, scope, ""));
+      setCssSaveStates((state) => ({ ...state, [scope]: "saved" }));
     } catch (error) {
       console.error("Error removing CSS:", error);
+      setCssSaveStates((state) => ({ ...state, [scope]: "error" }));
     }
   }
 
   async function handleIncludeSubdomainsToggle(checked: boolean) {
-    setIncludeSubdomains(checked);
-
-    if (!hostname) {
-      return;
+    try {
+      await saveAndInject({
+        includeSubdomains: checked,
+        customCSS: cssDrafts.site.saved,
+      });
+      setIncludeSubdomains(checked);
+      setCssSaveStates((state) => ({ ...state, site: "saved" }));
+    } catch (error) {
+      console.error("Error changing subdomain inheritance:", error);
+      setCssSaveStates((state) => ({ ...state, site: "error" }));
     }
-
-    await saveAndInject({ includeSubdomains: checked });
   }
 
   // Drops hostname's own record so it falls back to whatever it would
@@ -604,66 +718,95 @@ export function App() {
     if (!hostname) {
       return;
     }
-
-    await clearHostSettings(hostname);
-    const resolved = await resolveHostSettings(hostname);
-    const settings = resolved.settings;
-
-    setSourceHost(resolved.sourceHost);
-    setFontEnabled(settings.fontEnabled);
-    setCssEnabled(settings.cssEnabled !== false);
-    setIncludeSubdomains(settings.includeSubdomains !== false);
-    setCustomCSS(settings.customCSS);
-    setSavedCSS(settings.customCSS);
-
-    const matchedPreset = POPULAR_SITE_PRESETS.find((preset) =>
-      hostMatchesPreset(hostname, preset.host),
-    );
-    if (matchedPreset) {
-      setPresetStates((previous) => ({
-        ...previous,
-        [matchedPreset.host]: settings.fontEnabled,
-      }));
-    }
+    if (
+      isCssDraftDirty(cssDrafts, "site") &&
+      !window.confirm(t("editor.discardSiteDraft"))
+    )
+      return;
 
     try {
-      const tab = await getActiveTab();
-      await requestReinject(tab.id);
+      await clearHostSettings(hostname);
+      const resolved = await resolveHostSettings(hostname);
+      const settings = resolved.settings;
+
+      setSourceHost(resolved.sourceHost);
+      setFontEnabled(settings.fontEnabled);
+      setCssEnabled(settings.cssEnabled !== false);
+      setIncludeSubdomains(settings.includeSubdomains !== false);
+      setCssDrafts((drafts) =>
+        replaceCssScope(drafts, "site", settings.customCSS),
+      );
+      setCssSaveStates((state) => ({ ...state, site: "saved" }));
+
+      const matchedPreset = POPULAR_SITE_PRESETS.find((preset) =>
+        hostMatchesPreset(hostname, preset.host),
+      );
+      if (matchedPreset) {
+        setPresetStates((previous) => ({
+          ...previous,
+          [matchedPreset.host]: settings.fontEnabled,
+        }));
+      }
+
+      try {
+        const tab = await getActiveTab();
+        await requestReinject(tab.id);
+      } catch (error) {
+        console.error(error);
+      }
     } catch (error) {
-      console.error(error);
+      console.error("Error resetting site:", error);
+      setCssSaveStates((state) => ({ ...state, site: "error" }));
     }
   }
 
-  // The popup is 480px wide and closes the instant it loses focus, which is
+  // The popup is 420px wide and closes the instant it loses focus, which is
   // why import's file picker (and any serious editing) has to live on the
   // options page instead - open it pre-scoped to this host.
   function handlePopOutEditor() {
-    if (!hostname || typeof chrome === "undefined" || !chrome.tabs) {
+    if (
+      typeof chrome === "undefined" ||
+      !chrome.tabs ||
+      (cssScope === "site" && !hostname)
+    ) {
       return;
     }
+    if (
+      isCssDraftDirty(cssDrafts, cssScope) &&
+      !window.confirm(t("editor.fullEditorDraftWarning"))
+    )
+      return;
     chrome.tabs.create({
       url: chrome.runtime.getURL(
-        `options.html?host=${encodeURIComponent(hostname)}`,
+        cssScope === "site"
+          ? `options.html?host=${encodeURIComponent(hostname)}`
+          : "options.html?css=global",
       ),
     });
   }
 
-  const hasChanges = customCSS !== savedCSS;
+  const hasChanges = isCssDraftDirty(cssDrafts, cssScope);
+  const currentCss = cssDrafts[cssScope];
+  const cssBusy = cssSaveStates[cssScope] === "saving";
+  const hasActivePrimaryTab = PRIMARY_TABS.some((tab) => tab.id === activeTab);
 
   function handleTabsKeyDown(event: React.KeyboardEvent<HTMLElement>) {
-    const currentIndex = TABS.findIndex((tab) => tab.id === activeTab);
+    const activeIndex = PRIMARY_TABS.findIndex((tab) => tab.id === activeTab);
+    const currentIndex = activeIndex >= 0 ? activeIndex : 0;
     let nextIndex: number | null = null;
 
     if (event.key === "ArrowRight") {
       nextIndex =
-        (currentIndex + (dir === "rtl" ? -1 : 1) + TABS.length) % TABS.length;
+        (currentIndex + (dir === "rtl" ? -1 : 1) + PRIMARY_TABS.length) %
+        PRIMARY_TABS.length;
     } else if (event.key === "ArrowLeft") {
       nextIndex =
-        (currentIndex + (dir === "rtl" ? 1 : -1) + TABS.length) % TABS.length;
+        (currentIndex + (dir === "rtl" ? 1 : -1) + PRIMARY_TABS.length) %
+        PRIMARY_TABS.length;
     } else if (event.key === "Home") {
       nextIndex = 0;
     } else if (event.key === "End") {
-      nextIndex = TABS.length - 1;
+      nextIndex = PRIMARY_TABS.length - 1;
     }
 
     if (nextIndex === null) {
@@ -671,615 +814,730 @@ export function App() {
     }
 
     event.preventDefault();
-    const nextTab = TABS[nextIndex];
+    const nextTab = PRIMARY_TABS[nextIndex];
     setActiveTab(nextTab.id);
     tabRefs.current[nextTab.id]?.focus();
   }
 
+  if (!loaded)
+    return (
+      <main dir={dir} className="p-4 text-sm">
+        <p role={loadError ? "alert" : "status"}>
+          {t(loadError ? "settings.loadError" : "settings.loading")}
+        </p>
+        {loadError && (
+          <Button className="mt-3" onClick={() => window.location.reload()}>
+            {t("common.retry")}
+          </Button>
+        )}
+      </main>
+    );
+
   return (
-    <main className="w-[480px] max-h-[600px] overflow-y-auto overflow-x-hidden bg-background text-foreground fabric-weave">
-      <Card className="rounded-none border-0 bg-transparent shadow-none !bg-none p-1">
-        <CardContent className="space-y-2 p-2.5">
-          <section className="flex items-center justify-between gap-2">
-            <div className="min-w-0 flex-1 p-1">
-              <img
-                src="/logo.png"
-                alt="StyleShift"
-                className="h-14 object-contain"
-              />
-              {/* <div className="text-[10px] leading-3 text-muted-foreground">
-                {globalEnabled
-                  ? t("popup.statusEnabled")
-                  : t("popup.statusDisabled")}
-              </div> */}
-            </div>
-            <div className="flex gap-1">
-              <Switch
-                id="styleshift-enabled"
-                checked={globalEnabled}
-                onCheckedChange={handleGlobalToggle}
-              />
-            </div>
-          </section>
-
-          <Separator />
-
+    <main
+      dir={dir}
+      ref={popupScrollRef}
+      className="max-h-[600px] w-full max-w-[420px] overflow-y-auto overflow-x-hidden bg-background text-foreground"
+    >
+      {customFontCss && <style>{customFontCss}</style>}
+      <Card className="rounded-none border-0 bg-transparent shadow-none">
+        <CardContent className="p-0">
           <div>
-            <nav
-              role="tablist"
-              aria-orientation="horizontal"
-              onKeyDown={handleTabsKeyDown}
-              className="relative z-10 flex gap-[6px] mb-[-1px] ms-[10px]"
-            >
-              {TABS.map((tab) => {
-                const Icon = tab.icon;
-                const isActive = activeTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    ref={tabRefSetters[tab.id]}
-                    id={`tab-${tab.id}`}
-                    type="button"
-                    role="tab"
-                    aria-selected={isActive}
-                    aria-controls="styleshift-tabpanel"
-                    tabIndex={isActive ? 0 : -1}
-                    className={[
-                      "relative flex items-center justify-center gap-1.5 px-3 py-[11px] text-xs font-semibold border border-border rounded-t-lg cursor-pointer transition-all duration-150",
-                      isActive
-                        ? "bg-[var(--fabric-linen)] text-foreground border-b-[var(--fabric-linen)] shadow-[inset_0_2px_0_var(--fabric-denim)] z-20"
-                        : "bg-[var(--fabric-tab-inactive)] text-[var(--fabric-tab-inactive-fg)] shadow-[inset_0_-4px_8px_rgba(var(--fabric-shadow-rgb),.12)] hover:text-foreground",
-                    ].join(" ")}
-                    onClick={() => setActiveTab(tab.id)}
+            <div className="sticky top-0 z-30 bg-background/95 backdrop-blur-sm">
+              <header className="flex h-14 items-center justify-between border-b border-border px-4">
+                <div
+                  className="flex min-w-0 items-center gap-2.5"
+                  aria-label="StyleShift"
+                >
+                  <BrandIcon />
+                  <span className="truncate text-lg font-bold tracking-tight">
+                    StyleShift
+                  </span>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className={
+                    activeTab === "settings" || activeTab === "about"
+                      ? "bg-accent text-accent-foreground"
+                      : ""
+                  }
+                  aria-label={t("tabs.settings")}
+                  title={t("tabs.settings")}
+                  aria-pressed={
+                    activeTab === "settings" || activeTab === "about"
+                  }
+                  onClick={() => setActiveTab("settings")}
+                >
+                  <Settings className="h-5 w-5" />
+                </Button>
+              </header>
+
+              <section className="flex min-h-14 items-center justify-between gap-4 border-b border-border px-4 py-2.5">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <Globe2
+                    className="h-5 w-5 shrink-0 text-muted-foreground"
+                    aria-hidden="true"
+                  />
+                  <div className="min-w-0">
+                    <bdi
+                      className="block truncate text-sm font-semibold"
+                      dir="ltr"
+                    >
+                      {hostname || t("popup.restrictedPage")}
+                    </bdi>
+                    {!globalEnabled && (
+                      <span className="block text-[11px] text-muted-foreground">
+                        {t("popup.globalOff")}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Label
+                    htmlFor="site-font-enabled"
+                    className="text-xs text-muted-foreground"
                   >
-                    <Icon className="h-3 w-3" />
-                    {t(tab.labelKey)}
-                  </button>
-                );
-              })}
-            </nav>
+                    {t("popup.siteFonts")}
+                  </Label>
+                  <Switch
+                    id="site-font-enabled"
+                    checked={fontEnabled}
+                    onCheckedChange={handleFontToggle}
+                    disabled={!canApply}
+                    aria-label={t("popup.siteFonts")}
+                  />
+                </div>
+              </section>
+
+              <nav
+                role="tablist"
+                aria-orientation="horizontal"
+                onKeyDown={handleTabsKeyDown}
+                className="grid h-12 grid-cols-3 border-b border-border px-2"
+              >
+                {PRIMARY_TABS.map((tab, index) => {
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      ref={tabRefSetters[tab.id]}
+                      id={`tab-${tab.id}`}
+                      type="button"
+                      role="tab"
+                      aria-selected={isActive}
+                      aria-controls="styleshift-tabpanel"
+                      tabIndex={
+                        isActive || (!hasActivePrimaryTab && index === 0)
+                          ? 0
+                          : -1
+                      }
+                      className={[
+                        "relative flex items-center justify-center px-3 text-sm font-semibold text-muted-foreground transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring",
+                        isActive
+                          ? "text-primary after:absolute after:inset-x-3 after:bottom-0 after:h-0.5 after:bg-primary"
+                          : "hover:text-foreground",
+                      ].join(" ")}
+                      onClick={() => setActiveTab(tab.id)}
+                    >
+                      {t(tab.labelKey)}
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
             <div
               id="styleshift-tabpanel"
               role="tabpanel"
-              aria-labelledby={`tab-${activeTab}`}
+              aria-labelledby={
+                hasActivePrimaryTab ? `tab-${activeTab}` : undefined
+              }
+              aria-label={
+                activeTab === "settings"
+                  ? t("tabs.settings")
+                  : activeTab === "about"
+                    ? t("tabs.about")
+                    : undefined
+              }
               tabIndex={0}
-              className="relative rounded-lg border border-border bg-[var(--fabric-panel)] p-3 shadow-fabric fabric-weave fabric-stitch"
+              className="relative min-h-[260px] bg-background p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
             >
+              {actionError && (
+                <p role="alert" className="mb-3 text-xs text-destructive">
+                  {t("settings.saveError")}
+                </p>
+              )}
               {activeTab === "fonts" && (
-                <>
-                  <section className="space-y-2">
-                    <div className="space-y-1.5">
-                      <LabelWithHelp
-                        htmlFor="font-family"
-                        help={t("popup.fontFamilyHelp")}
-                      >
-                        {t("popup.fontFamily")}
-                      </LabelWithHelp>
-                      <Popover
-                        open={fontComboboxOpen}
-                        onOpenChange={setFontComboboxOpen}
-                      >
-                        <PopoverTrigger asChild>
-                          <Button
-                            id="font-family"
-                            type="button"
-                            variant="outline"
-                            role="combobox"
-                            aria-expanded={fontComboboxOpen}
-                            className="group h-auto min-h-9 w-full items-center justify-between px-2 py-1"
-                            disabled={!canApply}
+                <section className="space-y-3">
+                  {fontView === "pairing" ? (
+                    <>
+                      <div className="flex items-end justify-between gap-3">
+                        <div>
+                          <h1 className="text-xl font-bold tracking-tight">
+                            {t("popup.fontPairing")}
+                          </h1>
+                          <p className="mt-0.5 text-xs text-muted-foreground">
+                            {t("popup.orderedStack")}
+                          </p>
+                        </div>
+                        <span className="max-w-[150px] text-end text-[11px] leading-tight text-muted-foreground">
+                          {t("popup.sharedAcrossSites")}
+                        </span>
+                      </div>
+
+                      <FontPairing
+                        fontStack={fontStack}
+                        uploadedFontNames={uploadedFontNames}
+                        disabled={!globalEnabled}
+                        busy={fontSaveState === "saving"}
+                        onChange={persistFontStack}
+                      />
+
+                      <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                        <Info
+                          className="mt-0.5 h-3.5 w-3.5 shrink-0"
+                          aria-hidden="true"
+                        />
+                        {t("popup.fallbackExplanation")}
+                      </p>
+
+                      <div className="rounded-lg border border-primary/10 bg-accent p-3">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          {t("popup.preview")}
+                        </span>
+                        <div
+                          className="mt-2 border-s-2 border-primary ps-3"
+                          style={{
+                            fontFamily: fontFamily || undefined,
+                            lineHeight: typography.lineHeight ?? 1.45,
+                            letterSpacing:
+                              typography.letterSpacing === null
+                                ? undefined
+                                : `${typography.letterSpacing}em`,
+                            fontWeight: typography.fontWeight ?? 700,
+                          }}
+                        >
+                          <p dir="ltr" lang="en" className="text-start text-xl">
+                            The web, your way.
+                          </p>
+                          <p
+                            dir="rtl"
+                            lang="fa"
+                            className="mt-1 text-start text-lg"
                           >
-                            <span className="flex min-w-0 flex-1 flex-wrap items-center gap-1 self-center">
-                              {fontStack.length ? (
-                                fontStack.map((font) => (
-                                  <Badge
-                                    key={font}
-                                    variant="secondary"
-                                    className="min-h-7 min-w-0 max-w-[180px] gap-1 pr-1 transition-colors group-hover:brightness-[.97]"
+                            وب، به سبک تو
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="overflow-hidden rounded-lg border border-border bg-card">
+                        <div className="flex min-h-11 items-center gap-3 border-b border-border px-3">
+                          <Label
+                            htmlFor="mono-font-family"
+                            className="shrink-0 text-sm font-semibold"
+                          >
+                            {t("popup.codeFont")}
+                          </Label>
+                          <Popover
+                            open={monoFontComboboxOpen}
+                            onOpenChange={setMonoFontComboboxOpen}
+                          >
+                            <PopoverTrigger asChild>
+                              <Button
+                                id="mono-font-family"
+                                type="button"
+                                variant="ghost"
+                                role="combobox"
+                                aria-expanded={monoFontComboboxOpen}
+                                className="ms-auto h-9 min-w-0 max-w-[230px] gap-2 px-1.5 font-normal"
+                                disabled={!globalEnabled}
+                              >
+                                <span
+                                  className="truncate text-sm"
+                                  style={{
+                                    fontFamily: monoFont
+                                      ? `'${monoFont}', ui-monospace, monospace`
+                                      : undefined,
+                                  }}
+                                >
+                                  {monoFont || t("popup.pickCodeFont")}
+                                </span>
+                                {monoFont && (
+                                  <FontStatusDot
+                                    name={monoFont}
+                                    uploadedNames={uploadedFontNames}
+                                  />
+                                )}
+                                <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent
+                              className="w-[330px] max-w-[calc(420px-2rem)] p-[7px]"
+                              align="end"
+                              sideOffset={4}
+                              collisionPadding={8}
+                              usePortal={false}
+                            >
+                              <Command>
+                                <CommandInput
+                                  placeholder={t("popup.searchCodeFont")}
+                                  aria-label={t("popup.searchCodeFont")}
+                                />
+                                <CommandList className="max-h-[220px]">
+                                  <CommandEmpty>
+                                    {t("popup.noFontsFound")}
+                                  </CommandEmpty>
+                                  <CommandGroup>
+                                    <CommandItem
+                                      value={t("popup.noCodeFont")}
+                                      onSelect={clearMonoFont}
+                                    >
+                                      <Check
+                                        className={`me-2 h-4 w-4 ${monoFont ? "opacity-0" : "opacity-100"}`}
+                                      />
+                                      <span className="flex-1 text-muted-foreground">
+                                        {t("popup.noCodeFont")}
+                                      </span>
+                                    </CommandItem>
+                                  </CommandGroup>
+                                  {monoFontOptions.map((group) =>
+                                    group.fonts.length ? (
+                                      <CommandGroup
+                                        key={group.heading}
+                                        heading={group.heading}
+                                      >
+                                        {group.fonts.map((font) => (
+                                          <CommandItem
+                                            key={font}
+                                            value={font}
+                                            onSelect={() =>
+                                              chooseMonoFont(font)
+                                            }
+                                          >
+                                            <Check
+                                              className={`me-2 h-4 w-4 ${font.toLocaleLowerCase() === monoFont.toLocaleLowerCase() ? "opacity-100" : "opacity-0"}`}
+                                            />
+                                            <span
+                                              className="flex-1 truncate"
+                                              style={{
+                                                fontFamily: `'${font}', ui-monospace, monospace`,
+                                              }}
+                                            >
+                                              {font}
+                                            </span>
+                                            <FontStatusDot
+                                              name={font}
+                                              uploadedNames={uploadedFontNames}
+                                            />
+                                          </CommandItem>
+                                        ))}
+                                      </CommandGroup>
+                                    ) : null,
+                                  )}
+                                </CommandList>
+                              </Command>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                        <button
+                          type="button"
+                          className="flex min-h-11 w-full items-center gap-3 px-3 text-start transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
+                          onClick={() => setFontView("typography")}
+                        >
+                          <span className="text-sm font-semibold">
+                            {t("popup.typography")}
+                          </span>
+                          <span className="ms-auto truncate text-xs text-muted-foreground">
+                            {t("popup.typographySummary", {
+                              lineHeight:
+                                typography.lineHeight ??
+                                t("popup.typographyDefault"),
+                              weight:
+                                typography.fontWeight ??
+                                t("popup.typographyDefault"),
+                            })}
+                          </span>
+                          <ChevronRight
+                            className={`h-4 w-4 shrink-0 text-muted-foreground ${dir === "rtl" ? "rotate-180" : ""}`}
+                          />
+                        </button>
+                      </div>
+
+                      <details className="rounded-lg border border-border bg-card px-3 py-2">
+                        <summary className="cursor-pointer text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                          {t("popup.quickSites")}
+                        </summary>
+                        <div className="mt-2 grid grid-cols-[repeat(7,minmax(0,1fr))] gap-1">
+                          {presetColumns.map((column, columnIndex) => (
+                            <div
+                              key={columnIndex}
+                              className="flex flex-col items-center gap-1"
+                            >
+                              {column.map((preset) => {
+                                const active =
+                                  presetStates[preset.host] ?? true;
+                                return (
+                                  <Button
+                                    key={preset.host}
+                                    type="button"
+                                    variant="outline"
+                                    size="icon"
+                                    className={`relative h-10 w-10 overflow-hidden p-0 ${active ? "border-primary/35 bg-accent" : "opacity-50"}`}
+                                    title={t(
+                                      active
+                                        ? "popup.disablePreset"
+                                        : "popup.enablePreset",
+                                      { site: preset.label },
+                                    )}
+                                    aria-pressed={active}
+                                    onClick={() =>
+                                      handlePresetToggle(preset.host)
+                                    }
+                                    disabled={!globalEnabled}
                                   >
-                                    <FontStatusDot
-                                      name={font}
-                                      uploadedNames={uploadedFontNames}
-                                    />
-                                    <span className="min-w-0 truncate">
-                                      {font}
+                                    {failedPresetIcons[preset.host] ? (
+                                      <span className="text-[10px] font-semibold">
+                                        {preset.icon}
+                                      </span>
+                                    ) : (
+                                      <img
+                                        src={chrome.runtime.getURL(
+                                          `icons/presets/${preset.svgIcon}.svg`,
+                                        )}
+                                        alt=""
+                                        className={`h-6 w-6 object-contain${preset.monochrome ? " dark:invert" : ""}`}
+                                        onError={() =>
+                                          setFailedPresetIcons((previous) => ({
+                                            ...previous,
+                                            [preset.host]: true,
+                                          }))
+                                        }
+                                      />
+                                    )}
+                                    <span className="sr-only">
+                                      {preset.label}
                                     </span>
+                                  </Button>
+                                );
+                              })}
+                            </div>
+                          ))}
+                        </div>
+                        {sourceHost && sourceHost !== hostname && (
+                          <p className="mt-2 text-[10px] text-muted-foreground">
+                            {t("popup.inheritedFrom", { host: sourceHost })}
+                          </p>
+                        )}
+                      </details>
+                    </>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="flex items-center gap-1 rounded-sm text-sm font-semibold text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        onClick={() => setFontView("pairing")}
+                      >
+                        <ArrowLeft
+                          className={`h-4 w-4 ${dir === "rtl" ? "rotate-180" : ""}`}
+                        />
+                        {t("tabs.fonts")}
+                      </button>
+                      <h1 className="text-xl font-bold tracking-tight">
+                        {t("popup.typography")}
+                      </h1>
+
+                      <div className="rounded-lg border border-primary/10 bg-accent p-3">
+                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                          {t("popup.preview")}
+                        </span>
+                        <div
+                          className="mt-2 border-s-2 border-primary ps-3"
+                          style={{
+                            fontFamily: fontFamily || undefined,
+                            lineHeight: typography.lineHeight ?? 1.45,
+                            letterSpacing:
+                              typography.letterSpacing === null
+                                ? undefined
+                                : `${typography.letterSpacing}em`,
+                            fontWeight: typography.fontWeight ?? 700,
+                          }}
+                        >
+                          <p dir="ltr" lang="en" className="text-start text-xl">
+                            The web, your way.
+                          </p>
+                          <p
+                            dir="rtl"
+                            lang="fa"
+                            className="mt-1 text-start text-lg"
+                          >
+                            وب، به سبک تو
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="overflow-hidden rounded-lg border border-border bg-card">
+                        {TYPOGRAPHY_CONTROLS.map((control) => {
+                          const value = typography[control.field];
+                          const displayValue =
+                            value ?? TYPOGRAPHY_FIELD_NEUTRAL[control.field];
+                          return (
+                            <div
+                              key={control.field}
+                              className="space-y-2 border-b border-border p-3 last:border-b-0"
+                            >
+                              <div className="flex items-center justify-between gap-3">
+                                <Label
+                                  htmlFor={`typography-${control.field}`}
+                                  className="text-sm font-semibold"
+                                >
+                                  {t(control.labelKey)}
+                                </Label>
+                                <div className="flex items-center gap-1">
+                                  <span className="rounded-md border border-border bg-background px-2 py-1 text-xs tabular-nums text-muted-foreground">
+                                    {value === null
+                                      ? t("popup.typographyDefault")
+                                      : control.format(value)}
+                                  </span>
+                                  {value !== null && (
                                     <Button
                                       type="button"
                                       variant="ghost"
                                       size="icon"
-                                      className="h-4 w-4 rounded-sm hover:bg-foreground/10"
-                                      aria-label={`${t("common.close")} ${font}`}
-                                      onClick={(event) => {
-                                        event.preventDefault();
-                                        event.stopPropagation();
-                                        removeFontChip(font);
-                                      }}
-                                      disabled={!canApply}
-                                    >
-                                      <X
-                                        className="h-3 w-3"
-                                        aria-hidden="true"
-                                      />
-                                    </Button>
-                                  </Badge>
-                                ))
-                              ) : (
-                                <span className="px-1 text-sm font-normal text-muted-foreground">
-                                  {t("popup.fontPlaceholder")}
-                                </span>
-                              )}
-                            </span>
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 self-center opacity-50" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                          className="w-[var(--radix-popover-trigger-width)] max-w-[calc(480px-1.25rem)] p-[7px]"
-                          align="start"
-                          sideOffset={2}
-                          collisionPadding={8}
-                          usePortal={false}
-                        >
-                          <Command shouldFilter={false}>
-                            <CommandInput
-                              placeholder={t("popup.addFont")}
-                              value={fontDraft}
-                              onValueChange={setFontDraft}
-                              onKeyDown={(event) => {
-                                if (event.key === "Enter") {
-                                  event.preventDefault();
-                                  addFontChip();
-                                }
-                              }}
-                            />
-                            <CommandList className="max-h-[200px]">
-                              <CommandEmpty>
-                                {t("popup.pressEnterSave")}
-                              </CommandEmpty>
-                              {fontStack.length > 0 ? (
-                                <CommandGroup heading={t("popup.savedFonts")}>
-                                  {fontStack.map((font) => (
-                                    <CommandItem
-                                      key={font}
-                                      value={font}
-                                      onSelect={() => removeFontChip(font)}
-                                    >
-                                      <span className="flex-1 truncate">
-                                        {font}
-                                      </span>
-                                      <X
-                                        className="h-4 w-4 text-muted-foreground"
-                                        aria-hidden="true"
-                                      />
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              ) : null}
-                              {BUILTIN_SANS_FONT_NAMES.filter(
-                                (font) =>
-                                  !fontStack.some(
-                                    (saved) =>
-                                      saved.toLowerCase() ===
-                                      font.toLowerCase(),
-                                  ),
-                              ).length > 0 ? (
-                                <CommandGroup heading={t("popup.bundledFonts")}>
-                                  {BUILTIN_SANS_FONT_NAMES.filter(
-                                    (font) =>
-                                      !fontStack.some(
-                                        (saved) =>
-                                          saved.toLowerCase() ===
-                                          font.toLowerCase(),
-                                      ),
-                                  ).map((font) => (
-                                    <CommandItem
-                                      key={font}
-                                      value={font}
-                                      onSelect={() => addFontChip(font)}
-                                    >
-                                      <span className="flex-1 truncate">
-                                        {font}
-                                      </span>
-                                      <FontStatusDot
-                                        name={font}
-                                        uploadedNames={uploadedFontNames}
-                                      />
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              ) : null}
-                              {uploadedFontNames.filter(
-                                (font) =>
-                                  !fontStack.some(
-                                    (saved) =>
-                                      saved.toLowerCase() ===
-                                      font.toLowerCase(),
-                                  ),
-                              ).length > 0 ? (
-                                <CommandGroup
-                                  heading={t("popup.uploadedFonts")}
-                                >
-                                  {uploadedFontNames
-                                    .filter(
-                                      (font) =>
-                                        !fontStack.some(
-                                          (saved) =>
-                                            saved.toLowerCase() ===
-                                            font.toLowerCase(),
-                                        ),
-                                    )
-                                    .map((font) => (
-                                      <CommandItem
-                                        key={font}
-                                        value={font}
-                                        onSelect={() => addFontChip(font)}
-                                      >
-                                        <span className="flex-1 truncate">
-                                          {font}
-                                        </span>
-                                        <FontStatusDot
-                                          name={font}
-                                          uploadedNames={uploadedFontNames}
-                                        />
-                                      </CommandItem>
-                                    ))}
-                                </CommandGroup>
-                              ) : null}
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <LabelWithHelp muted help={t("popup.fontFamilyHelp")}>
-                          {t("popup.preActivated")}
-                        </LabelWithHelp>
-                        <span className="text-[10px] text-muted-foreground">
-                          {t("popup.clickToToggle")}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-9 justify-between gap-1">
-                        {presetColumns.map((column, columnIndex) => (
-                          <div
-                            key={columnIndex}
-                            className="flex flex-col items-center gap-1"
-                          >
-                            {column.map((preset) => {
-                              const active = presetStates[preset.host] ?? true;
-
-                              return (
-                                <Button
-                                  key={preset.host}
-                                  type="button"
-                                  variant="outline"
-                                  size="icon"
-                                  className={[
-                                    "relative h-10 w-10 overflow-hidden border p-0 transition-all fabric-stitch-sm",
-                                    active
-                                      ? "border-[var(--fabric-stitch)] bg-[var(--fabric-linen)] text-foreground hover:brightness-[.97] hover:shadow-sm"
-                                      : "border-border bg-[var(--fabric-canvas)] opacity-55 hover:border-[var(--fabric-stitch)] hover:opacity-100 hover:shadow-sm",
-                                  ].join(" ")}
-                                  title={t(
-                                    active
-                                      ? "popup.disablePreset"
-                                      : "popup.enablePreset",
-                                    { site: preset.label },
-                                  )}
-                                  aria-pressed={active}
-                                  onClick={() =>
-                                    handlePresetToggle(preset.host)
-                                  }
-                                  disabled={!globalEnabled}
-                                >
-                                  {failedPresetIcons[preset.host] ? (
-                                    <span className="text-[10px] font-semibold">
-                                      {preset.icon}
-                                    </span>
-                                  ) : (
-                                    <img
-                                      src={chrome.runtime.getURL(
-                                        `icons/presets/${preset.svgIcon}.svg`,
-                                      )}
-                                      alt=""
-                                      className={`h-6 w-6 object-contain${preset.monochrome ? " dark:invert" : ""}`}
-                                      onError={() =>
-                                        setFailedPresetIcons((previous) => ({
-                                          ...previous,
-                                          [preset.host]: true,
-                                        }))
+                                      className="h-7 w-7"
+                                      aria-label={`${t("common.reset")}: ${t(control.labelKey)}`}
+                                      onClick={() =>
+                                        persistTypography(control.field, null)
                                       }
-                                    />
+                                    >
+                                      <RotateCcw className="h-3.5 w-3.5" />
+                                    </Button>
                                   )}
-                                  <span className="sr-only">
-                                    {preset.label}
-                                  </span>
-                                </Button>
-                              );
-                            })}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 pt-2">
-                      <Checkbox
-                        id="font-enabled"
-                        checked={fontEnabled}
-                        onCheckedChange={(checked) =>
-                          handleFontToggle(checked === true)
-                        }
-                        disabled={!canApply}
-                      />
-                      <Label htmlFor="font-enabled" className="truncate">
-                        {t("popup.applyFontFor", { page: pageName })}
-                      </Label>
-                      <HelpTooltip
-                        label={t("popup.applyFontFor", { page: pageName })}
-                        help={t("popup.applyFontHelp", { page: pageName })}
-                      />
-                    </div>
-                    {sourceHost && sourceHost !== hostname && (
-                      <p className="pl-6 text-[10px] text-muted-foreground">
-                        {t("popup.inheritedFrom", { host: sourceHost })}
-                      </p>
-                    )}
-                  </section>
-
-                  <Separator className="my-2" />
-
-                  <section className="space-y-2">
-                    <div className="space-y-1.5">
-                      <LabelWithHelp
-                        htmlFor="mono-font-family"
-                        help={t("popup.codeFontHelp")}
-                      >
-                        {t("popup.codeFont")}
-                      </LabelWithHelp>
-                      {/* Single-select: exactly one code font applies at a
-                          time, so this shows the chosen name as plain text
-                          with a check beside it in the list - not the
-                          removable chips the multi-font text picker uses. */}
-                      <Popover
-                        open={monoFontComboboxOpen}
-                        onOpenChange={setMonoFontComboboxOpen}
-                      >
-                        <PopoverTrigger asChild>
-                          <Button
-                            id="mono-font-family"
-                            type="button"
-                            variant="outline"
-                            role="combobox"
-                            aria-expanded={monoFontComboboxOpen}
-                            className="h-9 w-full items-center justify-between px-3 font-normal"
-                            disabled={!canApply}
-                          >
-                            <span className="min-w-0 flex-1 truncate text-start text-sm">
-                              {monoFont ? (
-                                <span
-                                  style={{
-                                    fontFamily: `'${monoFont}', ui-monospace, monospace`,
-                                  }}
-                                >
-                                  {monoFont}
-                                </span>
-                              ) : (
-                                <span className="text-muted-foreground">
-                                  {t("popup.pickCodeFont")}
-                                </span>
-                              )}
-                            </span>
-                            {monoFont ? (
-                              <FontStatusDot
-                                name={monoFont}
-                                uploadedNames={uploadedFontNames}
+                                </div>
+                              </div>
+                              <input
+                                id={`typography-${control.field}`}
+                                type="range"
+                                min={control.min}
+                                max={control.max}
+                                step={control.step}
+                                value={displayValue}
+                                disabled={!globalEnabled}
+                                onChange={(event) =>
+                                  persistTypography(
+                                    control.field,
+                                    Number(event.target.value),
+                                  )
+                                }
+                                className="w-full accent-[var(--fabric-denim)] disabled:opacity-50"
                               />
-                            ) : null}
-                            <ChevronsUpDown className="ms-2 h-4 w-4 shrink-0 opacity-50" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                          className="w-[var(--radix-popover-trigger-width)] max-w-[calc(480px-1.25rem)] p-[7px]"
-                          align="start"
-                          sideOffset={2}
-                          collisionPadding={8}
-                          usePortal={false}
-                        >
-                          <Command>
-                            <CommandInput
-                              placeholder={t("popup.searchCodeFont")}
-                            />
-                            <CommandList className="max-h-[220px]">
-                              <CommandEmpty>
-                                {t("popup.noFontsFound")}
-                              </CommandEmpty>
-                              <CommandGroup>
-                                <CommandItem
-                                  value={t("popup.noCodeFont")}
-                                  onSelect={clearMonoFont}
-                                >
-                                  <Check
-                                    className={[
-                                      "me-2 h-4 w-4 shrink-0",
-                                      monoFont ? "opacity-0" : "opacity-100",
-                                    ].join(" ")}
-                                  />
-                                  <span className="flex-1 truncate text-muted-foreground">
-                                    {t("popup.noCodeFont")}
-                                  </span>
-                                </CommandItem>
-                              </CommandGroup>
-                              {monoFontOptions.map((group) =>
-                                group.fonts.length > 0 ? (
-                                  <CommandGroup
-                                    key={group.heading}
-                                    heading={group.heading}
-                                  >
-                                    {group.fonts.map((font) => (
-                                      <CommandItem
-                                        key={font}
-                                        value={font}
-                                        onSelect={() => chooseMonoFont(font)}
-                                      >
-                                        <Check
-                                          className={[
-                                            "me-2 h-4 w-4 shrink-0",
-                                            font.toLowerCase() ===
-                                            monoFont.toLowerCase()
-                                              ? "opacity-100"
-                                              : "opacity-0",
-                                          ].join(" ")}
-                                        />
-                                        <span
-                                          className="flex-1 truncate"
-                                          style={{
-                                            fontFamily: `'${font}', ui-monospace, monospace`,
-                                          }}
-                                        >
-                                          {font}
-                                        </span>
-                                        <FontStatusDot
-                                          name={font}
-                                          uploadedNames={uploadedFontNames}
-                                        />
-                                      </CommandItem>
-                                    ))}
-                                  </CommandGroup>
-                                ) : null,
-                              )}
-                            </CommandList>
-                          </Command>
-                        </PopoverContent>
-                      </Popover>
-                    </div>
-                  </section>
-
-                  <Separator className="my-2" />
-
-                  <section className="space-y-2.5">
-                    <LabelWithHelp help={t("popup.typographyHelp")}>
-                      {t("popup.typography")}
-                    </LabelWithHelp>
-                    {TYPOGRAPHY_CONTROLS.map((control) => {
-                      const value = typography[control.field];
-                      const disabled = !canApply || !fontEnabled;
-                      const displayValue =
-                        value ?? TYPOGRAPHY_FIELD_NEUTRAL[control.field];
-
-                      return (
-                        <div key={control.field} className="space-y-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <Label
-                              htmlFor={`typography-${control.field}`}
-                              className="text-xs text-muted-foreground"
-                            >
-                              {t(control.labelKey)}
-                            </Label>
+                            </div>
+                          );
+                        })}
+                        <div className="space-y-2 p-3">
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <Label
+                                htmlFor="typography-minFontSize"
+                                className="text-sm font-semibold"
+                              >
+                                {t("options.minFontSizeTitle")}
+                              </Label>
+                              <p className="text-[10px] leading-tight text-muted-foreground">
+                                {t("popup.minFontSizeScope")}
+                              </p>
+                            </div>
                             <div className="flex items-center gap-1">
-                              <span className="text-[10px] tabular-nums text-muted-foreground">
-                                {value === null
+                              <span className="rounded-md border border-border bg-background px-2 py-1 text-xs tabular-nums text-muted-foreground">
+                                {typography.minFontSize === null
                                   ? t("popup.typographyDefault")
-                                  : control.format(value)}
+                                  : `${typography.minFontSize}px`}
                               </span>
-                              {value !== null && (
+                              {typography.minFontSize !== null && (
                                 <Button
                                   type="button"
                                   variant="ghost"
                                   size="icon"
-                                  className="h-5 w-5"
-                                  disabled={disabled}
-                                  aria-label={t("common.reset")}
-                                  title={t("common.reset")}
+                                  className="h-7 w-7"
+                                  aria-label={`${t("common.reset")}: ${t("options.minFontSizeTitle")}`}
                                   onClick={() =>
-                                    persistTypography(control.field, null)
+                                    persistTypography("minFontSize", null)
                                   }
                                 >
-                                  <RotateCcw className="h-3 w-3" />
+                                  <RotateCcw className="h-3.5 w-3.5" />
                                 </Button>
                               )}
                             </div>
                           </div>
                           <input
-                            id={`typography-${control.field}`}
+                            id="typography-minFontSize"
                             type="range"
-                            min={control.min}
-                            max={control.max}
-                            step={control.step}
-                            value={displayValue}
-                            disabled={disabled}
+                            min={TYPOGRAPHY_RANGES.minFontSize.min}
+                            max={TYPOGRAPHY_RANGES.minFontSize.max}
+                            step={1}
+                            value={
+                              typography.minFontSize ??
+                              TYPOGRAPHY_RANGES.minFontSize.min
+                            }
                             onChange={(event) =>
                               persistTypography(
-                                control.field,
+                                "minFontSize",
                                 Number(event.target.value),
                               )
                             }
-                            className="w-full accent-[var(--fabric-denim)] disabled:opacity-50"
+                            className="w-full accent-[var(--fabric-denim)]"
                           />
                         </div>
-                      );
-                    })}
-                  </section>
-                </>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="gap-1.5"
+                        onClick={resetTypography}
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        {t("popup.resetTypography")}
+                      </Button>
+                    </>
+                  )}
+
+                  <div
+                    role={fontSaveState === "error" ? "alert" : "status"}
+                    className={`flex min-h-7 items-center gap-1.5 border-t border-border pt-2 text-xs ${fontSaveState === "error" ? "text-destructive" : "text-muted-foreground"}`}
+                  >
+                    {fontSaveState === "saved" && (
+                      <CheckCircle2 className="h-4 w-4 text-primary" />
+                    )}
+                    {fontSaveState === "saving"
+                      ? t("popup.savingAutomatically")
+                      : fontSaveState === "saved"
+                        ? t("popup.savedAutomatically")
+                        : fontSaveState === "error"
+                          ? t("popup.saveError")
+                          : t("popup.autosaveHint")}
+                  </div>
+                </section>
               )}
 
               {activeTab === "upload" && (
                 <section className="space-y-3">
                   <div>
-                    <Label className="text-sm font-semibold">
+                    <h1 className="text-xl font-bold tracking-tight">
+                      {t("fonts.libraryTitle")}
+                    </h1>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      {t("fonts.librarySubtitle")}
+                    </p>
+                  </div>
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute start-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="search"
+                      value={librarySearch}
+                      onChange={(event) => setLibrarySearch(event.target.value)}
+                      placeholder={t("fonts.search")}
+                      aria-label={t("fonts.search")}
+                      className="ps-9"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                       {t("fonts.bundledTitle")}
                     </Label>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {t("fonts.bundledSubtitle")}
-                    </p>
-                    <div className="mt-2 flex flex-wrap gap-1.5">
-                      {BUILTIN_FONTS.map((font) => (
-                        <span
+                    <div className="overflow-hidden rounded-lg border border-border bg-card">
+                      {filteredBuiltinFonts.map((font) => (
+                        <div
                           key={font.name}
-                          className="relative rounded-full border border-[var(--fabric-stitch)] bg-[var(--fabric-linen)] px-2.5 py-0.5 text-xs font-medium shadow-[inset_0_1px_0_rgba(var(--fabric-sheen-rgb),.3)] fabric-stitch-pill"
+                          className="grid grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 border-b border-border px-3 py-2 last:border-b-0"
                         >
-                          {font.name}
-                        </span>
+                          <span
+                            className="truncate text-sm font-semibold"
+                            style={{ fontFamily: `'${font.name}', sans-serif` }}
+                          >
+                            {font.name}
+                          </span>
+                          <span
+                            className="text-xl"
+                            aria-hidden="true"
+                            style={{ fontFamily: `'${font.name}', sans-serif` }}
+                          >
+                            Aa
+                          </span>
+                          <span className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                            <FontStatusDot
+                              name={font.name}
+                              uploadedNames={uploadedFontNames}
+                            />
+                            {t("fonts.bundledStatus")}
+                          </span>
+                        </div>
                       ))}
+                      {filteredBuiltinFonts.length === 0 && (
+                        <p className="py-4 text-center text-xs text-muted-foreground">
+                          {t("fonts.noBundledMatches")}
+                        </p>
+                      )}
                     </div>
                   </div>
 
-                  <Separator />
-
-                  <CustomFontManager onFontsChanged={reloadCustomFonts} />
+                  <CustomFontManager
+                    searchQuery={librarySearch}
+                    onFontsChanged={reloadCustomFonts}
+                  />
                 </section>
               )}
 
               {activeTab === "css" && (
-                <section className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Label className="flex items-center gap-1.5 text-sm font-semibold">
-                      <Braces className="h-3.5 w-3.5" />
+                <section className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h1 className="text-xl font-bold tracking-tight">
                       {t("editor.customCSS")}
-                    </Label>
-                    <div className="flex gap-1">
-                      <Button
-                        onClick={() => setCustomCSS(formatCSS(customCSS))}
-                        variant="mustard"
-                        size="sm"
-                        className="gap-1 h-6 text-[10px] px-2"
-                      >
-                        <WandSparkles className="h-3 w-3" />
-                        {t("editor.format")}
-                      </Button>
-                      {hostname && (
-                        <Button
-                          onClick={handlePopOutEditor}
-                          variant="secondary"
-                          size="sm"
-                          className="gap-1 h-6 text-[10px] px-2"
-                          title={t("options.popOutCss")}
-                          aria-label={t("options.popOutCss")}
+                    </h1>
+                    <div
+                      role="group"
+                      aria-label={t("editor.cssScope")}
+                      className="inline-flex rounded-md border border-border p-0.5"
+                    >
+                      {(["site", "global"] as const).map((scope) => (
+                        <button
+                          key={scope}
+                          type="button"
+                          aria-pressed={cssScope === scope}
+                          onClick={() => setCssScope(scope)}
+                          className={`rounded px-2.5 py-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${cssScope === scope ? "bg-accent font-semibold text-accent-foreground" : "text-muted-foreground hover:text-foreground"}`}
                         >
-                          <ExternalLink className="h-3 w-3" />
-                        </Button>
-                      )}
+                          {t(
+                            scope === "site"
+                              ? "editor.thisSite"
+                              : "editor.allSites",
+                          )}
+                          {isCssDraftDirty(cssDrafts, scope) ? " •" : ""}
+                        </button>
+                      ))}
                     </div>
                   </div>
-                  {hostname && (
+                  {cssScope === "global" && (
+                    <p className="text-xs text-muted-foreground">
+                      {t("editor.globalCssScopeHelp")}
+                    </p>
+                  )}
+                  {cssScope === "site" && (
+                    <p className="text-xs text-muted-foreground">
+                      {hostname ? (
+                        <>
+                          <bdi dir="ltr">{hostname}</bdi>
+                          {sourceHost && sourceHost !== hostname
+                            ? ` · ${t("popup.inheritedFrom", { host: sourceHost })}`
+                            : ""}
+                        </>
+                      ) : (
+                        t("editor.siteUnavailable")
+                      )}
+                    </p>
+                  )}
+                  {cssScope === "site" && hostname && (
                     <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-[var(--fabric-linen)] px-2 py-1.5">
                       <p className="min-w-0 text-xs text-muted-foreground">
                         {t("editor.editingFor")}{" "}
@@ -1292,18 +1550,18 @@ export function App() {
                           htmlFor="css-enabled"
                           className="text-xs text-muted-foreground"
                         >
-                          {t("editor.applyCss")}
+                          {t("editor.siteCssEnabled")}
                         </Label>
                         <Switch
                           id="css-enabled"
                           checked={cssEnabled}
                           onCheckedChange={handleCssEnabledToggle}
-                          disabled={!canApply}
+                          disabled={!canApply || cssBusy}
                         />
                       </div>
                     </div>
                   )}
-                  {hostname && (
+                  {cssScope === "site" && hostname && (
                     <div className="flex items-center justify-between gap-2 rounded-md border border-border bg-[var(--fabric-linen)] px-2 py-1.5">
                       <div className="flex min-w-0 items-center gap-1">
                         <p className="min-w-0 truncate text-xs text-muted-foreground">
@@ -1318,9 +1576,10 @@ export function App() {
                       </div>
                       <Switch
                         id="include-subdomains"
+                        aria-label={t("editor.includeSubdomains")}
                         checked={includeSubdomains}
                         onCheckedChange={handleIncludeSubdomainsToggle}
-                        disabled={!canApply}
+                        disabled={!canApply || cssBusy}
                       />
                     </div>
                   )}
@@ -1330,41 +1589,137 @@ export function App() {
                     }
                   >
                     <CssEditor
-                      value={customCSS}
-                      onChange={setCustomCSS}
-                      readOnly={!canApply}
+                      key={cssScope}
+                      value={currentCss.draft}
+                      ariaLabel={t(
+                        cssScope === "site"
+                          ? "editor.thisSite"
+                          : "editor.allSites",
+                      )}
+                      onChange={(value) => {
+                        setCssDrafts((drafts) =>
+                          updateCssDraft(drafts, cssScope, value),
+                        );
+                        setCssSaveStates((states) => ({
+                          ...states,
+                          [cssScope]: "idle",
+                        }));
+                      }}
+                      readOnly={
+                        cssBusy ||
+                        !globalEnabled ||
+                        (cssScope === "site" && !hostname)
+                      }
                       // A single line: CodeMirror renders the placeholder
                       // inside document line 1, so an embedded newline wraps
                       // there instead of becoming a second line - the gutter
                       // still reads "1" while four rows of grey text sit next
                       // to it, which looks like a broken editor.
-                      placeholder={t("editor.cssPlaceholder")}
+                      placeholder={t(
+                        cssScope === "site"
+                          ? "editor.cssPlaceholder"
+                          : "editor.globalCssPlaceholder",
+                      )}
                     />
                   </Suspense>
 
+                  <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-border bg-card p-1">
+                    <Button
+                      onClick={() =>
+                        setCssDrafts((drafts) =>
+                          updateCssDraft(
+                            drafts,
+                            cssScope,
+                            formatCSS(currentCss.draft),
+                          ),
+                        )
+                      }
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs"
+                      disabled={cssBusy}
+                    >
+                      {t("editor.format")}
+                    </Button>
+                    <Button
+                      onClick={async () => {
+                        try {
+                          await navigator.clipboard.writeText(currentCss.draft);
+                          setCssCopyStates((states) => ({
+                            ...states,
+                            [cssScope]: "copied",
+                          }));
+                        } catch (error) {
+                          console.error("Error copying CSS:", error);
+                          setCssCopyStates((states) => ({
+                            ...states,
+                            [cssScope]: "error",
+                          }));
+                        }
+                      }}
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs"
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                      {t("common.copy")}
+                    </Button>
+                    <Button
+                      onClick={handlePopOutEditor}
+                      variant="link"
+                      size="sm"
+                      className="ms-auto h-7 px-1 text-xs"
+                      disabled={cssScope === "site" && !hostname}
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      {t("options.popOutCss")}
+                    </Button>
+                  </div>
+                  <p className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                    <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    {t("editor.cssLayering")}
+                  </p>
                   <div className="flex flex-wrap gap-1.5">
                     <Button
                       onClick={handleSaveCSS}
-                      disabled={isSaving || !hasChanges || !canApply}
+                      disabled={
+                        cssBusy ||
+                        !hasChanges ||
+                        !globalEnabled ||
+                        (cssScope === "site" && !hostname)
+                      }
                       variant="olive"
                       size="sm"
                       className="gap-1.5 h-7 text-xs"
                     >
                       <Save className="h-3.5 w-3.5" />
-                      {isSaving ? t("editor.saving") : t("editor.saveCss")}
+                      {cssBusy ? t("editor.saving") : t("editor.saveCss")}
                     </Button>
                     <Button
                       onClick={handleRemoveCSS}
                       variant="destructive"
                       size="sm"
                       className="gap-1.5 h-7 text-xs"
-                      disabled={!canApply}
+                      disabled={
+                        cssBusy ||
+                        !currentCss.saved ||
+                        !globalEnabled ||
+                        (cssScope === "site" && !hostname)
+                      }
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                       {t("editor.removeCss")}
                     </Button>
                     <Button
-                      onClick={() => setCustomCSS(savedCSS)}
+                      onClick={() => {
+                        setCssDrafts((drafts) =>
+                          discardCssDraft(drafts, cssScope),
+                        );
+                        setCssSaveStates((states) => ({
+                          ...states,
+                          [cssScope]: "idle",
+                        }));
+                      }}
                       disabled={!hasChanges}
                       variant="secondary"
                       size="sm"
@@ -1373,16 +1728,7 @@ export function App() {
                       <RotateCcw className="h-3.5 w-3.5" />
                       {t("common.reset")}
                     </Button>
-                    <Button
-                      onClick={() => navigator.clipboard.writeText(customCSS)}
-                      variant="default"
-                      size="sm"
-                      className="gap-1.5 h-7 text-xs"
-                    >
-                      <Copy className="h-3.5 w-3.5" />
-                      {t("common.copy")}
-                    </Button>
-                    {sourceHost === hostname && (
+                    {cssScope === "site" && sourceHost === hostname && (
                       <Button
                         onClick={handleResetHost}
                         disabled={!canApply}
@@ -1401,11 +1747,65 @@ export function App() {
                       {t("editor.unsaved")}
                     </p>
                   )}
+                  <p
+                    role="status"
+                    className={`text-xs ${cssSaveStates[cssScope] === "error" || cssCopyStates[cssScope] === "error" ? "text-destructive" : "text-muted-foreground"}`}
+                  >
+                    {cssSaveStates[cssScope] === "error"
+                      ? t("editor.saveError")
+                      : cssSaveStates[cssScope] === "saved" && !hasChanges
+                        ? t("editor.saved")
+                        : cssCopyStates[cssScope] === "error"
+                          ? t("editor.copyError")
+                          : cssCopyStates[cssScope] === "copied"
+                            ? t("editor.copied")
+                            : ""}
+                  </p>
                 </section>
               )}
 
               {activeTab === "settings" && (
                 <section className="space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <h1 className="text-xl font-bold tracking-tight">
+                      {t("tabs.settings")}
+                    </h1>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setActiveTab("about")}
+                    >
+                      <Info className="h-4 w-4" />
+                      {t("tabs.about")}
+                    </Button>
+                  </div>
+
+                  <Separator />
+
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <Label
+                        htmlFor="styleshift-enabled"
+                        className="text-sm font-semibold"
+                      >
+                        {t("settings.enableStyleShift")}
+                      </Label>
+                      <p className="mt-0.5 text-[11px] leading-tight text-muted-foreground">
+                        {globalEnabled
+                          ? t("popup.statusEnabled")
+                          : t("popup.statusDisabled")}
+                      </p>
+                    </div>
+                    <Switch
+                      id="styleshift-enabled"
+                      checked={globalEnabled}
+                      onCheckedChange={handleGlobalToggle}
+                    />
+                  </div>
+
+                  <Separator />
+
                   <div className="flex items-center justify-between gap-3">
                     <div>
                       <Label
@@ -1478,7 +1878,11 @@ export function App() {
                       variant="secondary"
                       size="sm"
                       className="mt-2 gap-1.5 h-7 text-xs"
-                      onClick={() => chrome.runtime.openOptionsPage()}
+                      onClick={() =>
+                        chrome.tabs.create({
+                          url: chrome.runtime.getURL("options.html?view=sites"),
+                        })
+                      }
                     >
                       <ExternalLink className="h-3 w-3" />
                       {t("settings.manageSites")}
@@ -1489,8 +1893,26 @@ export function App() {
 
               {activeTab === "about" && (
                 <section className="space-y-3">
-                  <div className="rounded-lg border border-[var(--fabric-stitch)] bg-[var(--fabric-linen)] p-3 fabric-stitch">
-                    <h2 className="text-base font-display">StyleShift</h2>
+                  <div className="flex items-center justify-between gap-3">
+                    <h1 className="text-xl font-bold tracking-tight">
+                      {t("tabs.about")}
+                    </h1>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setActiveTab("settings")}
+                    >
+                      <Settings className="h-4 w-4" />
+                      {t("tabs.settings")}
+                    </Button>
+                  </div>
+
+                  <div className="rounded-lg border border-border bg-card p-3">
+                    <div className="flex items-center gap-3">
+                      <BrandIcon className="h-10 w-10" />
+                      <h2 className="text-base font-bold">StyleShift</h2>
+                    </div>
                     <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
                       {t("about.description")}
                     </p>

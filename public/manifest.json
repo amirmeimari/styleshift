@@ -1,12 +1,19 @@
 {
   "manifest_version": 3,
   "name": "StyleShift",
-  "version": "1.2.0",
-  "description": "Inject local fonts and custom CSS into any webpage",
+  "version": "2.0.0",
+  "description": "Pair primary and fallback fonts for multilingual websites. Customize typography and CSS with local fonts and private settings.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
       "48": "icons/icon48.png",
       "128": "icons/icon128.png"
     }
@@ -22,7 +29,9 @@
   "options_page": "options.html",
   "commands": {
     "toggle-font": {
-      "suggested_key": { "default": "Alt+Shift+S" },
+      "suggested_key": {
+        "default": "Alt+Shift+S"
+      },
       "description": "Toggle StyleShift fonts for the current site"
     }
   },

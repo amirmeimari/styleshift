@@ -13,6 +13,7 @@ import { isLocaleCode, type LocaleCode } from "./i18n/locales";
 import { isThemePref, type ThemePref } from "./theme";
 import {
   DEFAULT_SETTINGS,
+  fontFormatHint,
   isValidFontFormat,
   normalizeTypography,
   type CustomFont,
@@ -187,7 +188,6 @@ function sanitizeFonts(raw: unknown[]): {
     const name = typeof font.name === "string" ? font.name : "";
     const format =
       typeof font.format === "string" ? font.format.toLowerCase() : "";
-    const mimeType = typeof font.mimeType === "string" ? font.mimeType : "";
     const data = typeof font.data === "string" ? font.data : "";
 
     if (
@@ -196,7 +196,7 @@ function sanitizeFonts(raw: unknown[]): {
       !data ||
       !isValidFontFormat(format) ||
       !BASE64_PATTERN.test(data) ||
-      !mimeType
+      (font.mimeType !== undefined && typeof font.mimeType !== "string")
     ) {
       dropped++;
       continue;
@@ -210,6 +210,8 @@ function sanitizeFonts(raw: unknown[]): {
     }
 
     totalBytes += bytes;
+    // Some browsers leave File.type empty even for decodable fonts.
+    const mimeType = font.mimeType || fontFormatHint(format).mimeType;
     fonts.push({ id, name, format, mimeType, data });
   }
 

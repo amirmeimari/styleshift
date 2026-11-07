@@ -13,8 +13,12 @@ import {
   GLOBAL_CSS_STYLE_ID,
   GLOBAL_FONT_STACK_KEY,
   GLOBAL_MONO_FONT_STACK_KEY,
+  CUSTOM_FONTS_KEY,
+  CUSTOM_FONTS_STYLE_ID,
+  CUSTOM_FONT_INDEX_KEY,
+  GLOBAL_ENABLED_KEY,
 } from "@/shared/style-core";
-import { stubChrome } from "@/shared/test-chrome";
+import { createChromeStub, stubChrome } from "@/shared/test-chrome";
 
 const store: Record<string, unknown> = {};
 
@@ -101,6 +105,64 @@ describe("content script apply loop", () => {
     await new Promise((resolve) => setTimeout(resolve, 1000));
     expect(getSpy.mock.calls.length).toBe(callsBefore);
     getSpy.mockRestore();
+  });
+
+  it("removes the uploaded font sheet when the last font is deleted", async () => {
+    await chrome.storage.local.set({
+      [CUSTOM_FONTS_KEY]: {
+        one: {
+          id: "one",
+          name: "Uploaded Test",
+          data: "AA==",
+          mimeType: "font/woff2",
+          format: "woff2",
+        },
+      },
+    });
+    await settle();
+    expect(styleText(CUSTOM_FONTS_STYLE_ID)).toContain("Uploaded Test");
+    await chrome.storage.local.remove(CUSTOM_FONTS_KEY);
+    await settle();
+    expect(document.getElementById(CUSTOM_FONTS_STYLE_ID)).toBeNull();
+  });
+
+  it("cannot reinsert styles from an in-flight load after the master switch is disabled", async () => {
+    const originalGet = createChromeStub(store).storage.local.get;
+    let release: (() => void) | undefined;
+    let blocked = false;
+    const get = vi
+      .spyOn(chrome.storage.local, "get")
+      .mockImplementation(async (keys) => {
+        if (keys === CUSTOM_FONT_INDEX_KEY && !blocked) {
+          blocked = true;
+          await new Promise<void>((resolve) => {
+            release = resolve;
+          });
+        }
+        return originalGet(keys as string | string[] | null | undefined);
+      });
+    await chrome.storage.local.set({
+      [CUSTOM_FONTS_KEY]: {
+        one: {
+          id: "one",
+          name: "Pending Font",
+          data: "AA==",
+          mimeType: "font/woff2",
+          format: "woff2",
+        },
+      },
+    });
+    await vi.waitFor(() => expect(release).toBeTypeOf("function"));
+    await chrome.storage.local.set({ [GLOBAL_ENABLED_KEY]: false });
+    release!();
+    // Check before the MutationObserver's 100ms repair pass can hide a stale
+    // load reinserting disabled styles for a visible frame.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(document.getElementById(FONT_STYLE_ID)).toBeNull();
+    expect(document.getElementById(CUSTOM_FONTS_STYLE_ID)).toBeNull();
+    get.mockRestore();
+    await chrome.storage.local.remove([GLOBAL_ENABLED_KEY, CUSTOM_FONTS_KEY]);
+    await settle();
   });
 });
 

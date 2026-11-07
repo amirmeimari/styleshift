@@ -1,48 +1,42 @@
 // CodeMirror theme for the custom-CSS editor.
 //
-// The editor sits inside the popup's "fabric" design, so every colour here is
-// taken from the same `--fabric-*` custom properties the rest of the UI uses
-// (see src/index.css) rather than from a stock CodeMirror theme. The chrome of
-// the editor - border, radius, shadow, mono type scale - deliberately mirrors
-// the textarea this replaced so the CSS tab looks unchanged.
+// Compact dark code surface within the neutral StyleShift shell. Code text
+// stays LTR in both directions; the same theme is shared with the full editor.
 //
-// `dark` only tells CodeMirror which base theme class (`cm-theme-light` /
-// `cm-theme-dark`) to attach for its own internal defaults; every colour
-// below already flips with the `--fabric-*` custom properties, so the same
-// spec object works for both and needs no dark-specific branches.
+// The editor uses dark internal defaults in both surrounding UI themes.
 
 import { EditorView } from "@codemirror/view";
 import type { Extension } from "@codemirror/state";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 
-export function cssEditorTheme(dark: boolean): Extension {
+export function cssEditorTheme(_dark: boolean): Extension {
   return EditorView.theme(
     {
       "&": {
         // Declared once and reused by .cm-scroller and .cm-content below - see
         // the note on .cm-gutters for why both of them need it spelled out.
         "--styleshift-editor-min-height": "160px",
+        // UI chrome inherits the extension font; code/completions stay mono.
+        fontFamily: '"Inter", "Vazirmatn", system-ui, sans-serif',
         fontSize: "13px",
-        color: "hsl(var(--foreground))",
-        backgroundColor: "hsl(var(--card))",
+        color: "#e6e9f0",
+        backgroundColor: "#24272e",
         borderRadius: "var(--radius)",
-        border: "1px solid hsl(var(--border))",
-        boxShadow:
-          "0 3px 6px rgba(var(--fabric-shadow-rgb),.08), 0 8px 24px rgba(var(--fabric-shadow-rgb),.12)",
+        border: "1px solid #41454f",
+        boxShadow: "none",
         overflow: "hidden",
       },
       "&.cm-focused": {
         outline: "none",
-        boxShadow:
-          "0 3px 6px rgba(var(--fabric-shadow-rgb),.08), 0 8px 24px rgba(var(--fabric-shadow-rgb),.12), 0 0 0 1px var(--fabric-stitch)",
+        boxShadow: "0 0 0 2px hsl(var(--ring))",
       },
       ".cm-scroller": {
         fontFamily:
           "'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
         lineHeight: "1.25rem",
         minHeight: "var(--styleshift-editor-min-height)",
-        maxHeight: "40vh",
+        maxHeight: "min(36vh, 260px)",
       },
       ".cm-content": {
         padding: "8px 0",
@@ -50,7 +44,7 @@ export function cssEditorTheme(dark: boolean): Extension {
         // has to read as an ink mark against --card, while --fabric-denim
         // itself stays tuned for badge/button fills (see the note in
         // src/index.css's .dark block).
-        caretColor: "var(--fabric-denim-border)",
+        caretColor: "#a8b6ff",
         // CodeMirror's base theme gives this `min-height: 100%` so the
         // editable area fills the box. That percentage resolves against
         // .cm-scroller, whose own height is a percentage of an auto-height
@@ -72,10 +66,10 @@ export function cssEditorTheme(dark: boolean): Extension {
         // scrolls.
         alignSelf: "stretch",
         height: "auto",
-        backgroundColor: "var(--fabric-linen)",
-        color: "hsl(var(--muted-foreground))",
+        backgroundColor: "#20232a",
+        color: "#aab1c0",
         border: "none",
-        borderInlineEnd: "1px dashed var(--fabric-stitch)",
+        borderInlineEnd: "1px solid #41454f",
         userSelect: "none",
       },
       ".cm-lineNumbers .cm-gutterElement": {
@@ -89,7 +83,7 @@ export function cssEditorTheme(dark: boolean): Extension {
       ".cm-activeLineGutter": {
         backgroundColor:
           "color-mix(in srgb, var(--fabric-stitch) 18%, transparent)",
-        color: "hsl(var(--foreground))",
+        color: "#e6e9f0",
       },
       // CodeMirror paints the active line whether or not the editor has
       // focus. On an untouched editor that means a tinted band and a filled
@@ -99,10 +93,10 @@ export function cssEditorTheme(dark: boolean): Extension {
       "&:not(.cm-focused) .cm-activeLine": { backgroundColor: "transparent" },
       "&:not(.cm-focused) .cm-activeLineGutter": {
         backgroundColor: "transparent",
-        color: "hsl(var(--muted-foreground))",
+        color: "#aab1c0",
       },
       "&.cm-focused .cm-cursor": {
-        borderInlineStartColor: "var(--fabric-denim-border)",
+        borderInlineStartColor: "#a8b6ff",
       },
       "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection":
         {
@@ -124,16 +118,16 @@ export function cssEditorTheme(dark: boolean): Extension {
         outline: "1px solid var(--fabric-red-thread)",
       },
       ".cm-placeholder": {
-        color: "hsl(var(--muted-foreground))",
+        color: "#aab1c0",
         fontStyle: "normal",
       },
 
       // Autocomplete popup - styled like the popover surfaces elsewhere.
       ".cm-tooltip": {
-        border: "1px solid var(--fabric-stitch)",
+        border: "1px solid #41454f",
         borderRadius: "calc(var(--radius) - 2px)",
-        backgroundColor: "var(--fabric-canvas)",
-        color: "hsl(var(--foreground))",
+        backgroundColor: "#24272e",
+        color: "#e6e9f0",
         boxShadow: "0 8px 16px rgba(var(--fabric-shadow-rgb),.14)",
       },
       ".cm-tooltip.cm-tooltip-autocomplete > ul": {
@@ -173,42 +167,42 @@ export function cssEditorTheme(dark: boolean): Extension {
         textUnderlineOffset: "3px",
       },
     },
-    { dark },
+    { dark: true },
   );
 }
 
 // Syntax colours. CSS only needs a handful of token types; each maps to one of
 // the palette's thread colours so highlighting reads as part of the design.
 export const cssHighlightStyle = HighlightStyle.define([
-  { tag: tags.comment, color: "hsl(var(--muted-foreground))" },
+  { tag: tags.comment, color: "#aab1c0" },
   {
     tag: [tags.propertyName, tags.definition(tags.propertyName)],
     // -border, not the base fill (see the caretColor comment above).
-    color: "var(--fabric-denim-border)",
+    color: "#80c7ff",
   },
-  { tag: [tags.tagName, tags.typeName], color: "var(--fabric-leather)" },
-  { tag: tags.className, color: "var(--fabric-olive)" },
-  { tag: tags.labelName, color: "var(--fabric-olive)" },
-  { tag: [tags.attributeName, tags.modifier], color: "var(--fabric-olive)" },
+  { tag: [tags.tagName, tags.typeName], color: "#efb3f6" },
+  { tag: tags.className, color: "#b8dfa4" },
+  { tag: tags.labelName, color: "#b8dfa4" },
+  { tag: [tags.attributeName, tags.modifier], color: "#b8dfa4" },
   {
     tag: [tags.string, tags.special(tags.string)],
-    color: "var(--fabric-green-thread)",
+    color: "#b8dfa4",
   },
-  { tag: [tags.number, tags.unit], color: "var(--fabric-terracotta)" },
+  { tag: [tags.number, tags.unit], color: "#e5b9a8" },
   {
     tag: [tags.color, tags.constant(tags.name)],
-    color: "var(--fabric-terracotta)",
+    color: "#b6b8ff",
   },
-  { tag: tags.atom, color: "var(--fabric-terracotta)" },
+  { tag: tags.atom, color: "#b6b8ff" },
   {
     tag: [tags.keyword, tags.definitionKeyword],
-    color: "var(--fabric-red-thread)",
+    color: "#efb3f6",
   },
-  { tag: tags.function(tags.variableName), color: "var(--fabric-blue-thread)" },
-  { tag: tags.variableName, color: "var(--fabric-blue-thread)" },
-  { tag: tags.operator, color: "hsl(var(--muted-foreground))" },
-  { tag: tags.punctuation, color: "hsl(var(--muted-foreground))" },
-  { tag: tags.invalid, color: "var(--fabric-red-thread)" },
+  { tag: tags.function(tags.variableName), color: "#80c7ff" },
+  { tag: tags.variableName, color: "#80c7ff" },
+  { tag: tags.operator, color: "#aab1c0" },
+  { tag: tags.punctuation, color: "#aab1c0" },
+  { tag: tags.invalid, color: "#ff9a9a" },
 ]);
 
 export const cssEditorHighlighting = syntaxHighlighting(cssHighlightStyle);

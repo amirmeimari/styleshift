@@ -6,25 +6,94 @@
 // no chrome.tabs outside an extension host - which makes the dev server useless
 // for working on the UI.
 
+import {
+  AUTO_ENABLE_ALL_SITES_KEY,
+  GLOBAL_CSS_KEY,
+  GLOBAL_ENABLED_KEY,
+  GLOBAL_FONT_STACK_KEY,
+  GLOBAL_MONO_FONT_STACK_KEY,
+  TYPOGRAPHY_KEY,
+  type StyleShiftSettings,
+} from "@/shared/style-core";
+import { isLocaleCode, LOCALE_STORAGE_KEY } from "@/shared/i18n/locales";
+import { isThemePref, THEME_STORAGE_KEY } from "@/shared/theme";
+
 type StorageListener = (
   changes: Record<string, { oldValue?: unknown; newValue?: unknown }>,
   areaName: string,
 ) => void;
 
-const MOCK_TAB = {
-  id: 1,
-  url: "https://github.com/mimalef70/fontara",
-  active: true,
-  windowId: 1,
+const DEMO_SITES: Record<string, StyleShiftSettings> = {
+  "github.com": {
+    fontFamily: "",
+    monoFontFamily: "'JetBrains Mono'",
+    fontEnabled: true,
+    cssEnabled: true,
+    customCSS: "article { max-width: 72ch; }",
+    includeSubdomains: true,
+  },
+  "notion.so": {
+    fontFamily: "",
+    monoFontFamily: "'JetBrains Mono'",
+    fontEnabled: true,
+    cssEnabled: false,
+    customCSS: "",
+    includeSubdomains: false,
+  },
 };
+
+function demoSeed(params: URLSearchParams): Record<string, unknown> {
+  if (params.get("demo") !== "1") return {};
+
+  const state = params.get("state");
+  const locale = params.get("locale");
+  const theme = params.get("theme");
+  const seed: Record<string, unknown> = {};
+
+  if (state !== "empty") {
+    seed[GLOBAL_FONT_STACK_KEY] =
+      state === "unavailable"
+        ? [
+            "Inter",
+            "A Very Long Unavailable Font Family Name For Visual Verification",
+          ]
+        : ["Inter", "Vazirmatn"];
+    seed[GLOBAL_MONO_FONT_STACK_KEY] = ["JetBrains Mono"];
+    seed[GLOBAL_CSS_KEY] =
+      "article { max-width: 72ch; margin-inline: auto; }\na { text-underline-offset: 0.18em; }";
+    seed[TYPOGRAPHY_KEY] = {
+      lineHeight: 1.6,
+      letterSpacing: null,
+      fontWeight: 400,
+      minFontSize: null,
+    };
+    seed[AUTO_ENABLE_ALL_SITES_KEY] = false;
+    Object.assign(seed, DEMO_SITES);
+  }
+
+  seed[GLOBAL_ENABLED_KEY] = state !== "disabled";
+  if (isLocaleCode(locale)) seed[LOCALE_STORAGE_KEY] = locale;
+  if (isThemePref(theme)) seed[THEME_STORAGE_KEY] = theme;
+  return seed;
+}
 
 export function installChromeMock(): void {
   if (typeof globalThis.chrome !== "undefined" && globalThis.chrome?.tabs) {
     return;
   }
 
-  const store = new Map<string, unknown>();
+  const params = new URLSearchParams(window.location.search);
+  const store = new Map<string, unknown>(Object.entries(demoSeed(params)));
   const listeners = new Set<StorageListener>();
+  const mockTab = {
+    id: 1,
+    url:
+      params.get("state") === "restricted"
+        ? "chrome://settings/"
+        : "https://github.com/mimalef70/fontara",
+    active: true,
+    windowId: 1,
+  };
 
   const readKeys = (keys: string | string[] | null | undefined) => {
     if (keys === null || keys === undefined) {
@@ -82,7 +151,10 @@ export function installChromeMock(): void {
     },
     tabs: {
       async query() {
-        return [MOCK_TAB];
+        return [mockTab];
+      },
+      async create() {
+        return undefined;
       },
       async sendMessage() {
         return undefined;
@@ -95,6 +167,7 @@ export function installChromeMock(): void {
     },
     runtime: {
       getURL: (path: string) => `/${path.replace(/^\//, "")}`,
+      getManifest: () => ({ version: "1.2.0" }),
       onMessage: { addListener: () => {}, removeListener: () => {} },
       onInstalled: { addListener: () => {} },
     },
@@ -111,6 +184,6 @@ export function installChromeMock(): void {
   });
 
   console.info(
-    "[StyleShift] dev chrome mock installed - storage is in-memory and resets on reload.",
+    `[StyleShift] dev chrome mock installed${params.get("demo") === "1" ? " with deterministic demo data" : ""} - storage is in-memory and resets on reload.`,
   );
 }

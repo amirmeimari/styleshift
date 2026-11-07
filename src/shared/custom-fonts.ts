@@ -28,7 +28,21 @@ async function readIndex(): Promise<Record<string, StoredCustomFontMeta>> {
   const stored = (await chrome.storage.local.get(
     CUSTOM_FONT_INDEX_KEY,
   )) as Record<string, Record<string, StoredCustomFontMeta> | undefined>;
-  return stored[CUSTOM_FONT_INDEX_KEY] ?? {};
+  return { ...stored[CUSTOM_FONT_INDEX_KEY] };
+}
+
+async function readLegacyFonts(): Promise<Record<string, CustomFont>> {
+  const stored = (await chrome.storage.local.get(CUSTOM_FONTS_KEY)) as Record<
+    string,
+    Record<string, CustomFont> | undefined
+  >;
+  return stored[CUSTOM_FONTS_KEY] ?? {};
+}
+
+let fontWriteQueue: Promise<void> = Promise.resolve();
+function queueFontWrite(write: () => Promise<void>): Promise<void> {
+  fontWriteQueue = fontWriteQueue.catch(() => undefined).then(write);
+  return fontWriteQueue;
 }
 
 export async function readCustomFonts(): Promise<Record<string, CustomFont>> {
@@ -67,51 +81,66 @@ export async function readCustomFonts(): Promise<Record<string, CustomFont>> {
 }
 
 export async function updateCustomFont(font: CustomFont): Promise<void> {
-  try {
-    const index = await readIndex();
-    const oldMeta = index[font.id];
-
-    if (oldMeta) {
-      await chrome.storage.local.remove(chunkKeysFor(oldMeta));
+  return queueFontWrite(async () => {
+    try {
+      const index = await readIndex();
+      const oldMeta = index[font.id];
+      // Move every legacy font into the new index before removing the legacy
+      // key. Saving just the new font would hide and then delete the others.
+      const legacy = Object.keys(index).length ? {} : await readLegacyFonts();
+      const fonts = { ...legacy, [font.id]: font };
+      const writes: Record<string, unknown> = {
+        [CUSTOM_FONT_INDEX_KEY]: index,
+      };
+      for (const nextFont of Object.values(fonts)) {
+        const chunks = nextFont.data.match(
+          new RegExp(`.{1,${CUSTOM_FONT_CHUNK_SIZE}}`, "g"),
+        ) ?? [""];
+        index[nextFont.id] = {
+          id: nextFont.id,
+          name: nextFont.name,
+          mimeType: nextFont.mimeType,
+          format: nextFont.format,
+          chunks: chunks.length,
+        };
+        chunks.forEach((chunk, chunkIndex) => {
+          writes[customFontChunkKey(nextFont.id, chunkIndex)] = chunk;
+        });
+      }
+      // Keep the old payload intact until its replacement and index persist.
+      await chrome.storage.local.set(writes);
+      const staleChunks = oldMeta
+        ? chunkKeysFor(oldMeta).filter((key) => !(key in writes))
+        : [];
+      await chrome.storage.local.remove([CUSTOM_FONTS_KEY, ...staleChunks]);
+    } catch (error) {
+      console.error("Error saving custom font:", error);
+      throw error;
     }
-
-    const chunks = font.data.match(
-      new RegExp(`.{1,${CUSTOM_FONT_CHUNK_SIZE}}`, "g"),
-    ) ?? [""];
-    index[font.id] = {
-      id: font.id,
-      name: font.name,
-      mimeType: font.mimeType,
-      format: font.format,
-      chunks: chunks.length,
-    };
-
-    // Write the index and all chunks in a single batched set instead of one
-    // round-trip per chunk.
-    const writes: Record<string, unknown> = { [CUSTOM_FONT_INDEX_KEY]: index };
-    chunks.forEach((chunk, chunkIndex) => {
-      writes[customFontChunkKey(font.id, chunkIndex)] = chunk;
-    });
-    await chrome.storage.local.set(writes);
-    await chrome.storage.local.remove(CUSTOM_FONTS_KEY);
-  } catch (error) {
-    console.error("Error saving custom font:", error);
-    throw error;
-  }
+  });
 }
 
 export async function deleteCustomFont(fontId: string): Promise<void> {
-  try {
-    const index = await readIndex();
-    const oldMeta = index[fontId];
-    delete index[fontId];
+  return queueFontWrite(async () => {
+    try {
+      const index = await readIndex();
+      if (!Object.keys(index).length) {
+        const legacy = { ...(await readLegacyFonts()) };
+        delete legacy[fontId];
+        await chrome.storage.local.set({ [CUSTOM_FONTS_KEY]: legacy });
+        return;
+      }
+      const oldMeta = index[fontId];
+      delete index[fontId];
 
-    await chrome.storage.local.set({ [CUSTOM_FONT_INDEX_KEY]: index });
+      await chrome.storage.local.set({ [CUSTOM_FONT_INDEX_KEY]: index });
 
-    if (oldMeta) {
-      await chrome.storage.local.remove(chunkKeysFor(oldMeta));
+      if (oldMeta) {
+        await chrome.storage.local.remove(chunkKeysFor(oldMeta));
+      }
+    } catch (error) {
+      console.error("Error deleting custom font:", error);
+      throw error;
     }
-  } catch (error) {
-    console.error("Error deleting custom font:", error);
-  }
+  });
 }

@@ -4,26 +4,27 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-semibold transition-all duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 active:translate-y-px",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-semibold transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         default:
-          "border border-[var(--fabric-denim-border)] bg-[var(--fabric-denim)] text-[var(--fabric-on-denim)] shadow-fabric-button hover:brightness-110 hover:-translate-y-0.5 hover:shadow-fabric active:shadow-fabric-pressed",
+          "border border-primary bg-primary text-primary-foreground shadow-sm hover:bg-primary/90",
         destructive:
-          "border border-[var(--fabric-terracotta-border)] bg-[var(--fabric-terracotta-fill)] text-[var(--fabric-on-terracotta)] shadow-fabric-button hover:brightness-108 hover:-translate-y-0.5 hover:shadow-fabric active:shadow-fabric-pressed",
+          "border border-destructive bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
         olive:
-          "border border-[var(--fabric-olive-border)] bg-[var(--fabric-olive-fill)] text-[var(--fabric-on-olive)] shadow-fabric-button hover:brightness-110 hover:-translate-y-0.5 hover:shadow-fabric active:shadow-fabric-pressed",
+          "border border-primary bg-primary text-primary-foreground shadow-sm hover:bg-primary/90",
         mustard:
-          "border border-[var(--fabric-mustard-border)] bg-[var(--fabric-mustard)] text-[var(--fabric-on-mustard)] font-bold shadow-fabric-button hover:brightness-106 hover:-translate-y-0.5 hover:shadow-fabric active:shadow-fabric-pressed",
+          "border border-border bg-secondary text-secondary-foreground shadow-sm hover:bg-accent hover:text-accent-foreground",
         leather:
-          "border border-[var(--fabric-leather-border)] bg-[var(--fabric-leather)] text-[var(--fabric-on-leather)] shadow-fabric-button hover:brightness-112 hover:-translate-y-0.5 hover:shadow-fabric active:shadow-fabric-pressed",
+          "border border-foreground bg-foreground text-background shadow-sm hover:bg-foreground/90",
         outline:
-          "border border-border bg-[var(--fabric-canvas)] shadow-sm hover:brightness-[.97] hover:-translate-y-0.5 hover:shadow-fabric active:shadow-fabric-pressed fabric-stitch-sm",
+          "border border-border bg-background text-foreground shadow-sm hover:bg-accent hover:text-accent-foreground",
         secondary:
-          "border border-border bg-secondary text-secondary-foreground shadow-sm hover:brightness-[.97] hover:-translate-y-0.5 hover:shadow-fabric active:shadow-fabric-pressed",
-        ghost: "hover:bg-accent/50 active:shadow-fabric-pressed",
-        link: "text-[var(--fabric-blue-thread)] underline-offset-4 hover:underline",
+          "border border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
+        ghost:
+          "border border-transparent hover:bg-accent hover:text-accent-foreground",
+        link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
         default: "h-9 px-4 py-2",

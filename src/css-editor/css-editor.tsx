@@ -7,7 +7,7 @@
 // keystroke.
 //
 // Extensions are picked individually rather than pulling in `basicSetup`: the
-// popup is 480px wide, so the line-number gutter and folding controls that
+// popup is 420px wide, so the line-number gutter and folding controls that
 // come with the batteries-included setup would eat most of the width.
 
 import { useEffect, useRef } from "react";
@@ -55,18 +55,34 @@ type CssEditorProps = {
   onChange: (value: string) => void;
   placeholder?: string;
   readOnly?: boolean;
+  ariaLabel?: string;
   /** Locale direction; the editor content itself always stays LTR. */
   className?: string;
 };
 
 const editableCompartment = new Compartment();
 const themeCompartment = new Compartment();
+const attributesCompartment = new Compartment();
 
-function baseExtensions(placeholderText: string, dark: boolean): Extension[] {
+function contentAttributes(ariaLabel: string) {
+  return EditorView.contentAttributes.of({
+    spellcheck: "false",
+    autocapitalize: "off",
+    autocorrect: "off",
+    dir: "ltr",
+    "aria-label": ariaLabel,
+  });
+}
+
+function baseExtensions(
+  placeholderText: string,
+  dark: boolean,
+  ariaLabel: string,
+): Extension[] {
   return [
     lineNumbers(),
     // No lintGutter(): its marker column is empty almost all the time and the
-    // popup is only 480px wide. linter() below still draws the wavy underlines
+    // popup is only 420px wide. linter() below still draws the wavy underlines
     // and their hover tooltips, which is where the diagnostics are read.
     highlightActiveLineGutter(),
     highlightSpecialChars(),
@@ -91,14 +107,7 @@ function baseExtensions(placeholderText: string, dark: boolean): Extension[] {
     placeholderExtension(placeholderText),
     themeCompartment.of(cssEditorTheme(dark)),
     EditorView.lineWrapping,
-    EditorView.contentAttributes.of({
-      spellcheck: "false",
-      autocapitalize: "off",
-      autocorrect: "off",
-      // CSS is always LTR even when the surrounding UI is Arabic or Farsi.
-      dir: "ltr",
-      "aria-label": "Custom CSS",
-    }),
+    attributesCompartment.of(contentAttributes(ariaLabel)),
     keymap.of([
       ...closeBracketsKeymap,
       ...defaultKeymap,
@@ -117,6 +126,7 @@ export function CssEditor({
   onChange,
   placeholder = "",
   readOnly = false,
+  ariaLabel = "Custom CSS",
   className,
 }: CssEditorProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -141,7 +151,7 @@ export function CssEditor({
       state: EditorState.create({
         doc: value,
         extensions: [
-          ...baseExtensions(placeholder, resolvedTheme === "dark"),
+          ...baseExtensions(placeholder, resolvedTheme === "dark", ariaLabel),
           editableCompartment.of([
             EditorView.editable.of(!readOnly),
             EditorState.readOnly.of(readOnly),
@@ -200,6 +210,12 @@ export function CssEditor({
       ]),
     });
   }, [readOnly]);
+
+  useEffect(() => {
+    viewRef.current?.dispatch({
+      effects: attributesCompartment.reconfigure(contentAttributes(ariaLabel)),
+    });
+  }, [ariaLabel]);
 
   useEffect(() => {
     const view = viewRef.current;

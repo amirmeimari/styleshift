@@ -89,6 +89,9 @@ export function I18nProvider({
       if (isLocaleCode(next)) {
         setLocaleState(next);
         applyDocumentLocale(next);
+      } else if (next === undefined) {
+        setLocaleState(DEFAULT_LOCALE);
+        applyDocumentLocale(DEFAULT_LOCALE);
       }
     }, []),
   );

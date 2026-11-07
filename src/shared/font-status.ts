@@ -1,19 +1,20 @@
 import { BUILTIN_FONT_NAMES } from "./builtin-fonts";
 
-// Whether a font name is guaranteed available. Browsers do not expose which
-// fonts a user has installed locally, so anything that isn't bundled or uploaded
-// is "unknown" - it will be used if present, but we cannot confirm it.
+// Uploaded indicates storage provenance, not successful decoding. The library
+// checks uploaded bytes; typed local family availability remains unknown.
 export type FontStatus = "bundled" | "uploaded" | "unknown";
 
 export function fontStatus(name: string, uploadedNames: string[]): FontStatus {
   const lower = name.toLowerCase();
 
-  if (BUILTIN_FONT_NAMES.some((builtin) => builtin.toLowerCase() === lower)) {
-    return "bundled";
-  }
-
+  // An uploaded face can share a bundled/local family name. Its stored
+  // provenance must not become a decoding guarantee through that collision.
   if (uploadedNames.some((uploaded) => uploaded.toLowerCase() === lower)) {
     return "uploaded";
+  }
+
+  if (BUILTIN_FONT_NAMES.some((builtin) => builtin.toLowerCase() === lower)) {
+    return "bundled";
   }
 
   return "unknown";

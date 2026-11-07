@@ -8,7 +8,9 @@
 import { isInjectableUrl } from "./style-core";
 import type { ReinjectMessage } from "./messages";
 
-export async function getActiveTab(): Promise<chrome.tabs.Tab> {
+export async function getActiveTab(options?: {
+  allowRestricted?: boolean;
+}): Promise<chrome.tabs.Tab> {
   if (typeof chrome === "undefined" || !chrome.tabs) {
     throw new Error("Open StyleShift as a Chrome extension.");
   }
@@ -19,7 +21,7 @@ export async function getActiveTab(): Promise<chrome.tabs.Tab> {
     throw new Error("No active tab found.");
   }
 
-  if (!isInjectableUrl(tab.url)) {
+  if (!options?.allowRestricted && !isInjectableUrl(tab.url)) {
     throw new Error("StyleShift is not available on this page.");
   }
 

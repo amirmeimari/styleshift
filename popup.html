@@ -4,18 +4,29 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>StyleShift</title>
+    <link rel="icon" type="image/png" href="/icons/dark/icon32.png" />
     <style>
-      /* Excludes the CSS editor: it sets its own (JetBrains Mono) font in
-         css-editor-theme.ts, which this !important rule would otherwise
-         beat regardless of specificity. */
-      *:not(.cm-editor, .cm-editor *) {
-        font-family: "Nunito Sans", "Vazirmatn", sans-serif !important;
+      /* Inherit UI typography without overriding selected font specimens. */
+      body {
+        font-family: "Inter", "Vazirmatn", system-ui, sans-serif;
+      }
+
+      html,
+      body {
+        /* Chrome sizes action popups from intrinsic content. A 100vw cap can
+           feed its initial tiny viewport back into the preferred width. */
+        width: 420px;
+        min-width: 420px;
       }
 
       body {
-        width: 480px;
+        /* Keep the fixed popup frame anchored physically left even when the
+           localized app inside it is RTL. The React <main> owns content
+           direction; without this frame rule, a wider host viewport can
+           right-align and partially clip the 420px popup body. */
+        direction: ltr;
         margin: 0;
-        background: #e7dac4;
+        background: #fafaf8;
       }
 
       /* First-paint ground before React/the stored theme pref can apply the
@@ -23,7 +34,7 @@
          that contradicts the OS still gets one frame of the wrong ground. */
       @media (prefers-color-scheme: dark) {
         body {
-          background: #1a1714;
+          background: #18191d;
         }
       }
     </style>

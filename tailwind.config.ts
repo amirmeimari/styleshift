@@ -7,8 +7,8 @@ const config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Nunito Sans", "Vazirmatn", "system-ui", "sans-serif"],
-        display: ["Nunito Sans", "Vazirmatn", "system-ui", "sans-serif"],
+        sans: ["Inter", "Vazirmatn", "system-ui", "sans-serif"],
+        display: ["Inter", "Vazirmatn", "system-ui", "sans-serif"],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -51,11 +51,9 @@ const config = {
         sm: "calc(var(--radius) - 4px)",
       },
       boxShadow: {
-        fabric:
-          "0 3px 6px rgba(var(--fabric-shadow-rgb),.08), 0 8px 24px rgba(var(--fabric-shadow-rgb),.12)",
-        "fabric-pressed": "inset 0 2px 4px rgba(var(--fabric-press-rgb),.18)",
-        "fabric-button":
-          "0 2px 4px rgba(var(--fabric-shadow-rgb),.18), inset 0 1px 0 rgba(var(--fabric-sheen-rgb),.12)",
+        fabric: "0 8px 24px rgba(var(--fabric-shadow-rgb),.08)",
+        "fabric-pressed": "inset 0 1px 2px rgba(var(--fabric-press-rgb),.12)",
+        "fabric-button": "0 1px 2px rgba(var(--fabric-shadow-rgb),.08)",
       },
     },
   },

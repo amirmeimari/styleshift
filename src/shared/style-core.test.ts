@@ -190,6 +190,20 @@ describe("hostSettingsCandidates", () => {
 });
 
 describe("isInjectableUrl", () => {
+  it("rejects current and legacy Web Store domains without blocking lookalikes", () => {
+    expect(
+      isInjectableUrl("https://chromewebstore.google.com/detail/example"),
+    ).toBe(false);
+    expect(
+      isInjectableUrl("https://chrome.google.com/webstore/detail/example"),
+    ).toBe(false);
+    expect(isInjectableUrl("https://sub.chromewebstore.google.com/")).toBe(
+      false,
+    );
+    expect(
+      isInjectableUrl("https://chromewebstore.google.com.example.org/"),
+    ).toBe(true);
+  });
   it("allows http and https only", () => {
     expect(isInjectableUrl("https://example.com")).toBe(true);
     expect(isInjectableUrl("http://example.com")).toBe(true);

@@ -29,30 +29,66 @@ export async function updateGlobalEnabled(enabled: boolean): Promise<void> {
   await chrome.storage.local.set({ [GLOBAL_ENABLED_KEY]: enabled });
 }
 
-export async function readGlobalFontStack(): Promise<string[]> {
+// Shared readers define selection for both UI and page injection. Missing
+// keys use the defaults below; explicit [] disables that override. Legacy
+// host font fields are retained as data, never promoted into shared stacks.
+export type StoredFontStack = { value: string[]; exists: boolean };
+
+export async function readGlobalFontStackEntry(): Promise<StoredFontStack> {
   const stored = (await chrome.storage.local.get(
     GLOBAL_FONT_STACK_KEY,
   )) as Record<string, string[] | undefined>;
-  return stored[GLOBAL_FONT_STACK_KEY] ?? [];
+  return {
+    value: stored[GLOBAL_FONT_STACK_KEY] ?? [],
+    exists: Object.prototype.hasOwnProperty.call(stored, GLOBAL_FONT_STACK_KEY),
+  };
 }
+
+export async function readGlobalFontStack(): Promise<string[]> {
+  return (await readGlobalFontStackEntry()).value;
+}
+
+let globalFontStackWriteQueue: Promise<void> = Promise.resolve();
 
 export async function updateGlobalFontStack(
   fontStack: string[],
 ): Promise<void> {
-  await chrome.storage.local.set({ [GLOBAL_FONT_STACK_KEY]: fontStack });
+  globalFontStackWriteQueue = globalFontStackWriteQueue
+    .catch(() => undefined)
+    .then(() =>
+      chrome.storage.local.set({ [GLOBAL_FONT_STACK_KEY]: fontStack }),
+    );
+  await globalFontStackWriteQueue;
 }
 
-export async function readGlobalMonoFontStack(): Promise<string[]> {
+export async function readGlobalMonoFontStackEntry(): Promise<StoredFontStack> {
   const stored = (await chrome.storage.local.get(
     GLOBAL_MONO_FONT_STACK_KEY,
   )) as Record<string, string[] | undefined>;
-  return stored[GLOBAL_MONO_FONT_STACK_KEY] ?? [DEFAULT_MONO_FONT];
+  return {
+    value: stored[GLOBAL_MONO_FONT_STACK_KEY] ?? [DEFAULT_MONO_FONT],
+    exists: Object.prototype.hasOwnProperty.call(
+      stored,
+      GLOBAL_MONO_FONT_STACK_KEY,
+    ),
+  };
 }
+
+export async function readGlobalMonoFontStack(): Promise<string[]> {
+  return (await readGlobalMonoFontStackEntry()).value;
+}
+
+let globalMonoFontStackWriteQueue: Promise<void> = Promise.resolve();
 
 export async function updateGlobalMonoFontStack(
   fontStack: string[],
 ): Promise<void> {
-  await chrome.storage.local.set({ [GLOBAL_MONO_FONT_STACK_KEY]: fontStack });
+  globalMonoFontStackWriteQueue = globalMonoFontStackWriteQueue
+    .catch(() => undefined)
+    .then(() =>
+      chrome.storage.local.set({ [GLOBAL_MONO_FONT_STACK_KEY]: fontStack }),
+    );
+  await globalMonoFontStackWriteQueue;
 }
 
 export async function readGlobalCSS(): Promise<string> {
@@ -180,23 +216,21 @@ export async function readTypography(): Promise<TypographySettings> {
   return normalizeTypography(stored[TYPOGRAPHY_KEY]);
 }
 
-// Chained onto itself so concurrent callers (e.g. a slider firing several
-// onChange events before the first write lands) each see the previous call's
-// result rather than racing a read-modify-write against it and silently
-// dropping one field's update. Lazily seeded on first call rather than at
-// module load, so importing this module never touches chrome.storage before
-// a caller actually asks for a write.
+// Serialize this page's slider writes and read storage inside each queued
+// operation. A cached result would restore stale fields after a backup import
+// or a change from another extension page.
 let typographyWriteQueue: Promise<TypographySettings> | null = null;
 
 export async function updateTypography(
   patch: Partial<TypographySettings>,
 ): Promise<TypographySettings> {
-  typographyWriteQueue = (typographyWriteQueue ?? readTypography()).then(
-    async (current) => {
+  typographyWriteQueue = (typographyWriteQueue ?? Promise.resolve())
+    .catch(() => undefined)
+    .then(async () => {
+      const current = await readTypography();
       const next = normalizeTypography({ ...current, ...patch });
       await chrome.storage.local.set({ [TYPOGRAPHY_KEY]: next });
       return next;
-    },
-  );
+    });
   return typographyWriteQueue;
 }
