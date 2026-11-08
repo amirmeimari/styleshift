@@ -8,10 +8,27 @@ dist/
 release/
 *.tsbuildinfo
 
-# Environment variables
+# Environment variables and signing keys
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Extension archives
+*.crx
+*.zip
+
+# Local design, QA, and store records
+/CHROMEWEBSTORE.md
+/docs/design/
+/docs/history/
+/docs/redesign/
+/docs/screenshots/
+/docs/store/redesign/
+/docs/store/v2.0.0/
 
 # Editor & IDE
 .vscode/
