@@ -83,7 +83,7 @@ it.each(
     (["light", "dark"] as const).map((theme) => ({ locale, theme })),
   ),
 )(
-  "keeps bilingual preview direction/alignment independent of the $theme $locale UI in both Fonts views",
+  "keeps the editable preview and ordered fonts across both Fonts views in $theme $locale",
   async ({ locale, theme }) => {
     previewSettings.locale = locale;
     previewSettings.theme = theme;
@@ -92,28 +92,26 @@ it.each(
     render(<App />);
     await screen.findByText("child.example.com");
 
-    const expectBilingualPreview = () => {
-      const english = screen.getByText("The web, your way.");
-      const persian = screen.getByText("وب، به سبک تو");
-      expect(english.closest("main")?.dir).toBe(localeDir(locale));
-      for (const [sample, dir, lang] of [
-        [english, "ltr", "en"],
-        [persian, "rtl", "fa"],
-      ] as const) {
-        expect(sample.dir).toBe(dir);
-        expect(sample.lang).toBe(lang);
-        // Logical start is left for English, right for Persian. In RTL,
-        // text-end would incorrectly put the Persian line on the left.
-        expect(sample.classList.contains("text-start")).toBe(true);
-        expect(sample.classList.contains("text-end")).toBe(false);
-        expect(sample.parentElement?.style.fontFamily).toBe(
-          'Inter, Vazirmatn, "Exact Local Family"',
-        );
-      }
+    const expectPreview = (value: string) => {
+      const preview = screen.getByRole<HTMLTextAreaElement>("textbox", {
+        name: translate(locale, "popup.preview"),
+      });
+      expect(preview.value).toBe(value);
+      expect(preview.closest("main")?.dir).toBe(localeDir(locale));
+      expect(preview.dir).toBe("auto");
+      expect(preview.classList.contains("text-start")).toBe(true);
+      expect(preview.style.fontFamily).toBe(
+        'Inter, Vazirmatn, "Exact Local Family"',
+      );
+      return preview;
     };
-    expectBilingualPreview();
-    // Mixed-script row specimens retain their own first-strong direction.
-    for (const specimen of screen.getAllByText("Aa آب")) {
+    const preview = expectPreview("The web, your way.");
+    const sample = "سلام دنیا\n你好，世界！\nHello, world.";
+    fireEvent.change(preview, { target: { value: sample } });
+    expectPreview(sample);
+    const rowSamples = screen.getAllByText("Aa");
+    expect(rowSamples).toHaveLength(3);
+    for (const specimen of rowSamples) {
       expect(specimen.dir).toBe("auto");
       expect(specimen.getAttribute("aria-hidden")).toBe("true");
     }
@@ -122,7 +120,7 @@ it.each(
         name: new RegExp(`^${translate(locale, "popup.typography")}`),
       }),
     );
-    expectBilingualPreview();
+    expectPreview(sample);
     expect(store).toEqual(originalStore);
   },
 );
@@ -322,7 +320,7 @@ it.each(["keyboard", "drag"])(
       screen.getByRole("button", { name: "Replace Fallback 3: Inter" }),
     ).toBeTruthy();
     expect(
-      screen.getByText("The web, your way.").parentElement?.style.fontFamily,
+      screen.getByDisplayValue("The web, your way.").style.fontFamily,
     ).toBe('Vazirmatn, "Exact Local Family", Inter');
     unmount();
     render(<App />);
@@ -360,9 +358,9 @@ it("rolls back the exact saved stack and preview on a rejected reorder, then per
   expect(
     screen.getByRole("button", { name: "Replace Primary: Inter" }),
   ).toBeTruthy();
-  expect(
-    screen.getByText("The web, your way.").parentElement?.style.fontFamily,
-  ).toBe("Inter, Vazirmatn");
+  expect(screen.getByDisplayValue("The web, your way.").style.fontFamily).toBe(
+    "Inter, Vazirmatn",
+  );
   reorderInter();
   await waitFor(() =>
     expect(store[GLOBAL_FONT_STACK_KEY]).toEqual(["Vazirmatn", "Inter"]),

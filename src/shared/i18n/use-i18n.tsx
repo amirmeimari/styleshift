@@ -8,10 +8,9 @@ import {
   type ReactNode,
 } from "react";
 import {
-  DEFAULT_LOCALE,
   LOCALE_STORAGE_KEY,
-  isLocaleCode,
   localeDir,
+  resolveUiLocale,
   type LocaleCode,
 } from "./locales";
 import { translate, type MessageVars } from "./translations";
@@ -30,15 +29,12 @@ async function readStoredLocale(): Promise<LocaleCode> {
   try {
     if (typeof chrome !== "undefined" && chrome.storage?.local) {
       const stored = await chrome.storage.local.get(LOCALE_STORAGE_KEY);
-      const value = stored[LOCALE_STORAGE_KEY];
-      if (isLocaleCode(value)) {
-        return value;
-      }
+      return resolveUiLocale(stored[LOCALE_STORAGE_KEY]);
     }
   } catch {
     // fall through to default
   }
-  return DEFAULT_LOCALE;
+  return resolveUiLocale();
 }
 
 function applyDocumentLocale(locale: LocaleCode) {
@@ -57,7 +53,7 @@ export function I18nProvider({
   initialLocale?: LocaleCode;
 }) {
   const [locale, setLocaleState] = useState<LocaleCode>(
-    initialLocale ?? DEFAULT_LOCALE,
+    () => initialLocale ?? resolveUiLocale(),
   );
 
   useEffect(() => {
@@ -86,13 +82,9 @@ export function I18nProvider({
   useStorageKeyListener(
     LOCALE_STORAGE_KEY,
     useCallback((next) => {
-      if (isLocaleCode(next)) {
-        setLocaleState(next);
-        applyDocumentLocale(next);
-      } else if (next === undefined) {
-        setLocaleState(DEFAULT_LOCALE);
-        applyDocumentLocale(DEFAULT_LOCALE);
-      }
+      const resolved = resolveUiLocale(next);
+      setLocaleState(resolved);
+      applyDocumentLocale(resolved);
     }, []),
   );
 

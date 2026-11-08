@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "為多語網站搭配主要與備援字型，使用本機字型自訂文字排版和 CSS。"
+  },
+  "toggleFontCommand": {
+    "message": "開啟或關閉目前網站的 StyleShift 字型"
+  }
+}

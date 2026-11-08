@@ -140,6 +140,9 @@ function EditorFallback({ height = 280 }: { height?: number }) {
 
 export function OptionsApp() {
   const { t, dir, locale, setLocale } = useI18n();
+  useEffect(() => {
+    document.title = t("options.title");
+  }, [t]);
   const { theme, setTheme } = useTheme();
   const [activeView, setActiveView] = useState<OptionsView>(() =>
     optionsViewFromSearch(window.location.search),
@@ -644,7 +647,7 @@ export function OptionsApp() {
       setImportError(t("options.importReadError"));
       return;
     }
-    const result = parseBackup(text);
+    const result = parseBackup(text, locale);
     if (!result.ok) {
       setImportPreview(null);
       setImportError(
@@ -785,7 +788,7 @@ export function OptionsApp() {
   return (
     <main dir={dir} className="min-h-screen bg-background text-foreground">
       {customFontCss && <style>{customFontCss}</style>}
-      <div className="mx-auto grid min-h-screen max-w-[1440px] grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)]">
+      <div className="mx-auto min-h-screen max-w-[1440px] lg:grid lg:grid-cols-[240px_minmax(0,1fr)]">
         <aside className="border-b border-border bg-card lg:sticky lg:top-0 lg:h-screen lg:border-b-0 lg:border-e">
           <div className="flex h-full flex-col">
             <div className="flex h-16 items-center gap-2.5 px-5">
@@ -872,7 +875,7 @@ export function OptionsApp() {
                     onChange={(event) => setSiteSearch(event.target.value)}
                     placeholder={t("options.searchSites")}
                     aria-label={t("options.searchSites")}
-                    className="ps-9"
+                    className="bg-card ps-9"
                   />
                 </div>
 
@@ -1151,7 +1154,7 @@ export function OptionsApp() {
                     onChange={(event) => setLibrarySearch(event.target.value)}
                     placeholder={t("fonts.search")}
                     aria-label={t("fonts.search")}
-                    className="ps-9"
+                    className="bg-card ps-9"
                   />
                 </div>
                 <div className="space-y-2">

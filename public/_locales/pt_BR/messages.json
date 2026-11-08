@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "Combine fontes principais e alternativas em sites multilíngues. Personalize a tipografia e o CSS com fontes locais."
+  },
+  "toggleFontCommand": {
+    "message": "Ativar ou desativar as fontes do StyleShift no site atual"
+  }
+}

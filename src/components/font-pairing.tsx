@@ -311,7 +311,7 @@ export function FontPairing({
                     fontFamily: `'${font.replace(/'/g, "\\'")}', sans-serif`,
                   }}
                 >
-                  Aa آب
+                  Aa
                 </span>
                 <div className="flex shrink-0 items-center gap-1">
                   <span className="me-1 flex h-7 w-3 shrink-0 items-center justify-center">

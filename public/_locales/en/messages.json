@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "Pair primary and fallback fonts for multilingual websites. Customize typography and CSS with local fonts and private settings."
+  },
+  "toggleFontCommand": {
+    "message": "Toggle StyleShift fonts for the current site"
+  }
+}

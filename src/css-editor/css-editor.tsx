@@ -48,6 +48,9 @@ import { lintKeymap, linter } from "@codemirror/lint";
 import { css as cssLanguage } from "@codemirror/lang-css";
 import { cssEditorHighlighting, cssEditorTheme } from "./css-editor-theme";
 import { cssDiagnostics } from "./css-lint";
+import { editorPhrases } from "./editor-phrases";
+import type { LocaleCode } from "@/shared/i18n/locales";
+import { useI18n } from "@/shared/i18n/use-i18n";
 import { useTheme } from "@/shared/theme-provider";
 
 type CssEditorProps = {
@@ -56,13 +59,13 @@ type CssEditorProps = {
   placeholder?: string;
   readOnly?: boolean;
   ariaLabel?: string;
-  /** Locale direction; the editor content itself always stays LTR. */
   className?: string;
 };
 
 const editableCompartment = new Compartment();
 const themeCompartment = new Compartment();
 const attributesCompartment = new Compartment();
+const languageCompartment = new Compartment();
 
 function contentAttributes(ariaLabel: string) {
   return EditorView.contentAttributes.of({
@@ -74,11 +77,14 @@ function contentAttributes(ariaLabel: string) {
   });
 }
 
-function baseExtensions(
-  placeholderText: string,
-  dark: boolean,
-  ariaLabel: string,
-): Extension[] {
+function editorLanguage(locale: LocaleCode, placeholder: string): Extension[] {
+  return [
+    EditorState.phrases.of(editorPhrases(locale)),
+    placeholderExtension(placeholder),
+  ];
+}
+
+function baseExtensions(dark: boolean, ariaLabel: string): Extension[] {
   return [
     lineNumbers(),
     // No lintGutter(): its marker column is empty almost all the time and the
@@ -103,8 +109,18 @@ function baseExtensions(
     // The CSS-specific style comes first so it wins over the generic fallback.
     cssEditorHighlighting,
     syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-    linter((view) => cssDiagnostics(view.state.doc.toString()), { delay: 400 }),
-    placeholderExtension(placeholderText),
+    linter(
+      ({ state }) =>
+        cssDiagnostics(state.doc.toString(), (message) =>
+          state.phrase(message),
+        ),
+      {
+        delay: 400,
+        needsRefresh: ({ startState, state }) =>
+          startState.facet(EditorState.phrases) !==
+          state.facet(EditorState.phrases),
+      },
+    ),
     themeCompartment.of(cssEditorTheme(dark)),
     EditorView.lineWrapping,
     attributesCompartment.of(contentAttributes(ariaLabel)),
@@ -126,12 +142,14 @@ export function CssEditor({
   onChange,
   placeholder = "",
   readOnly = false,
-  ariaLabel = "Custom CSS",
+  ariaLabel,
   className,
 }: CssEditorProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const viewRef = useRef<EditorView | null>(null);
   const { resolvedTheme } = useTheme();
+  const { locale, t } = useI18n();
+  const label = ariaLabel ?? t("editor.customCSS");
   // Held in a ref so the update listener never goes stale without having to
   // tear down and rebuild the editor when the callback identity changes.
   const onChangeRef = useRef(onChange);
@@ -151,7 +169,8 @@ export function CssEditor({
       state: EditorState.create({
         doc: value,
         extensions: [
-          ...baseExtensions(placeholder, resolvedTheme === "dark", ariaLabel),
+          ...baseExtensions(resolvedTheme === "dark", label),
+          languageCompartment.of(editorLanguage(locale, placeholder)),
           editableCompartment.of([
             EditorView.editable.of(!readOnly),
             EditorState.readOnly.of(readOnly),
@@ -213,9 +232,17 @@ export function CssEditor({
 
   useEffect(() => {
     viewRef.current?.dispatch({
-      effects: attributesCompartment.reconfigure(contentAttributes(ariaLabel)),
+      effects: attributesCompartment.reconfigure(contentAttributes(label)),
     });
-  }, [ariaLabel]);
+  }, [label]);
+
+  useEffect(() => {
+    viewRef.current?.dispatch({
+      effects: languageCompartment.reconfigure(
+        editorLanguage(locale, placeholder),
+      ),
+    });
+  }, [locale, placeholder]);
 
   useEffect(() => {
     const view = viewRef.current;

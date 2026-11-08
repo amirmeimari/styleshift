@@ -5,6 +5,7 @@ import {
   ChevronsUpDown,
   Check,
   CheckCircle2,
+  ChevronDown,
   ChevronRight,
   Copy,
   ExternalLink,
@@ -18,6 +19,7 @@ import {
   Sun,
   SunMoon,
   Trash2,
+  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BrandIcon } from "@/components/brand-icon";
@@ -50,6 +52,7 @@ import {
 } from "@/components/ui/popover";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import type {
   CustomFont,
   StyleShiftSettings,
@@ -216,6 +219,7 @@ export function App() {
   const [monoFontComboboxOpen, setMonoFontComboboxOpen] = useState(false);
   const [monoFontDraft, setMonoFontDraft] = useState("");
   const [fontView, setFontView] = useState<FontView>("pairing");
+  const [previewText, setPreviewText] = useState("The web, your way.");
   const [fontSaveState, setFontSaveState] = useState<SaveState>("idle");
   const fontSaveGeneration = useRef(0);
   const fontStackGeneration = useRef(0);
@@ -865,6 +869,35 @@ export function App() {
       </main>
     );
 
+  const fontPreview = (
+    <div className="rounded-lg border border-primary/10 bg-accent p-3">
+      <Label
+        htmlFor="font-preview"
+        className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"
+      >
+        {t("popup.preview")}
+      </Label>
+      <Textarea
+        id="font-preview"
+        dir="auto"
+        rows={2}
+        spellCheck={false}
+        className="mt-2 resize-y text-start text-xl md:text-xl"
+        value={previewText}
+        onChange={(event) => setPreviewText(event.target.value)}
+        style={{
+          fontFamily: fontFamily || undefined,
+          lineHeight: typography.lineHeight ?? 1.45,
+          letterSpacing:
+            typography.letterSpacing === null
+              ? undefined
+              : `${typography.letterSpacing}em`,
+          fontWeight: typography.fontWeight ?? 700,
+        }}
+      />
+    </div>
+  );
+
   return (
     <main
       dir={dir}
@@ -1035,34 +1068,7 @@ export function App() {
                         {t("popup.fallbackExplanation")}
                       </p>
 
-                      <div className="rounded-lg border border-primary/10 bg-accent p-3">
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                          {t("popup.preview")}
-                        </span>
-                        <div
-                          className="mt-2 border-s-2 border-primary ps-3"
-                          style={{
-                            fontFamily: fontFamily || undefined,
-                            lineHeight: typography.lineHeight ?? 1.45,
-                            letterSpacing:
-                              typography.letterSpacing === null
-                                ? undefined
-                                : `${typography.letterSpacing}em`,
-                            fontWeight: typography.fontWeight ?? 700,
-                          }}
-                        >
-                          <p dir="ltr" lang="en" className="text-start text-xl">
-                            The web, your way.
-                          </p>
-                          <p
-                            dir="rtl"
-                            lang="fa"
-                            className="mt-1 text-start text-lg"
-                          >
-                            وب، به سبک تو
-                          </p>
-                        </div>
-                      </div>
+                      {fontPreview}
 
                       <div className="overflow-hidden rounded-lg border border-border bg-card">
                         <div className="flex min-h-11 items-center gap-3 border-b border-border px-3">
@@ -1219,9 +1225,19 @@ export function App() {
                         </button>
                       </div>
 
-                      <details className="rounded-lg border border-border bg-card px-3 py-2">
-                        <summary className="cursor-pointer text-xs font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-                          {t("popup.quickSites")}
+                      <details className="group rounded-lg border border-border bg-card px-3 py-2">
+                        <summary className="flex cursor-pointer list-none items-center gap-2.5 rounded-md text-xs font-semibold hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring [&::-webkit-details-marker]:hidden">
+                          <span
+                            aria-hidden="true"
+                            className="grid size-7 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 text-primary ring-1 ring-inset ring-primary/15"
+                          >
+                            <Zap className="size-4 fill-current" />
+                          </span>
+                          <span>{t("popup.quickSites")}</span>
+                          <ChevronDown
+                            aria-hidden="true"
+                            className="ms-auto size-4 shrink-0 text-muted-foreground group-open:rotate-180 motion-safe:transition-transform"
+                          />
                         </summary>
                         <div className="mt-2 grid grid-cols-[repeat(7,minmax(0,1fr))] gap-1">
                           {presetColumns.map((column, columnIndex) => (
@@ -1302,34 +1318,7 @@ export function App() {
                         {t("popup.typography")}
                       </h1>
 
-                      <div className="rounded-lg border border-primary/10 bg-accent p-3">
-                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                          {t("popup.preview")}
-                        </span>
-                        <div
-                          className="mt-2 border-s-2 border-primary ps-3"
-                          style={{
-                            fontFamily: fontFamily || undefined,
-                            lineHeight: typography.lineHeight ?? 1.45,
-                            letterSpacing:
-                              typography.letterSpacing === null
-                                ? undefined
-                                : `${typography.letterSpacing}em`,
-                            fontWeight: typography.fontWeight ?? 700,
-                          }}
-                        >
-                          <p dir="ltr" lang="en" className="text-start text-xl">
-                            The web, your way.
-                          </p>
-                          <p
-                            dir="rtl"
-                            lang="fa"
-                            className="mt-1 text-start text-lg"
-                          >
-                            وب، به سبک تو
-                          </p>
-                        </div>
-                      </div>
+                      {fontPreview}
 
                       <div className="overflow-hidden rounded-lg border border-border bg-card">
                         {TYPOGRAPHY_CONTROLS.map((control) => {
@@ -1493,7 +1482,7 @@ export function App() {
                       onChange={(event) => setLibrarySearch(event.target.value)}
                       placeholder={t("fonts.search")}
                       aria-label={t("fonts.search")}
-                      className="ps-9"
+                      className="bg-card ps-9 text-sm dark:bg-muted"
                     />
                   </div>
 

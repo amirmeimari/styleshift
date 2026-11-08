@@ -9,7 +9,8 @@
 // reach chrome.storage.local.set - that is the whole reason isHostSettingsKey
 // exists and why every site key is checked against it before being trusted.
 
-import { isLocaleCode, type LocaleCode } from "./i18n/locales";
+import { DEFAULT_LOCALE, isLocaleCode, type LocaleCode } from "./i18n/locales";
+import { translate } from "./i18n/translations";
 import { isThemePref, type ThemePref } from "./theme";
 import {
   DEFAULT_SETTINGS,
@@ -227,7 +228,10 @@ export type BackupParseResult =
       error: "invalid-json" | "not-a-backup" | "unsupported-version";
     };
 
-function sanitizeGlobals(raw: unknown): {
+function sanitizeGlobals(
+  raw: unknown,
+  locale: LocaleCode,
+): {
   globals: StyleShiftBackupGlobals;
   warnings: string[];
 } {
@@ -250,7 +254,7 @@ function sanitizeGlobals(raw: unknown): {
   ) {
     globals.fontStack = source.fontStack as string[];
   } else if (source.fontStack !== undefined) {
-    warnings.push("Global font stack was invalid and was dropped.");
+    warnings.push(translate(locale, "backup.invalidFontStack"));
   }
   if (
     Array.isArray(source.monoFontStack) &&
@@ -258,7 +262,7 @@ function sanitizeGlobals(raw: unknown): {
   ) {
     globals.monoFontStack = source.monoFontStack as string[];
   } else if (source.monoFontStack !== undefined) {
-    warnings.push("Global mono font stack was invalid and was dropped.");
+    warnings.push(translate(locale, "backup.invalidMonoFontStack"));
   }
   for (const field of ["savedTextFontNames", "savedCodeFontNames"] as const) {
     const names = source[field];
@@ -275,12 +279,12 @@ function sanitizeGlobals(raw: unknown): {
   if (isLocaleCode(source.locale)) {
     globals.locale = source.locale;
   } else if (source.locale !== undefined) {
-    warnings.push("Saved language was invalid and was dropped.");
+    warnings.push(translate(locale, "backup.invalidLocale"));
   }
   if (isThemePref(source.theme)) {
     globals.theme = source.theme;
   } else if (source.theme !== undefined) {
-    warnings.push("Saved theme was invalid and was dropped.");
+    warnings.push(translate(locale, "backup.invalidTheme"));
   }
   if (typeof source.globalCSS === "string") {
     globals.globalCSS =
@@ -288,13 +292,16 @@ function sanitizeGlobals(raw: unknown): {
         ? source.globalCSS.slice(0, MAX_CSS_LENGTH)
         : source.globalCSS;
   } else if (source.globalCSS !== undefined) {
-    warnings.push("Global CSS was invalid and was dropped.");
+    warnings.push(translate(locale, "backup.invalidGlobalCss"));
   }
 
   return { globals, warnings };
 }
 
-export function parseBackup(text: string): BackupParseResult {
+export function parseBackup(
+  text: string,
+  locale: LocaleCode = DEFAULT_LOCALE,
+): BackupParseResult {
   let raw: unknown;
   try {
     raw = JSON.parse(text);
@@ -316,7 +323,10 @@ export function parseBackup(text: string): BackupParseResult {
 
   const warnings: string[] = [];
 
-  const { globals, warnings: globalWarnings } = sanitizeGlobals(obj.globals);
+  const { globals, warnings: globalWarnings } = sanitizeGlobals(
+    obj.globals,
+    locale,
+  );
   warnings.push(...globalWarnings);
 
   const rawSites = (
@@ -343,7 +353,10 @@ export function parseBackup(text: string): BackupParseResult {
 
   if (droppedSites > 0) {
     warnings.push(
-      `${droppedSites} site record(s) had an invalid key or exceeded the ${MAX_SITES}-site limit and were dropped.`,
+      translate(locale, "backup.droppedSites", {
+        count: droppedSites,
+        limit: MAX_SITES,
+      }),
     );
   }
 
@@ -353,7 +366,7 @@ export function parseBackup(text: string): BackupParseResult {
     fonts = sanitized.fonts;
     if (sanitized.dropped > 0) {
       warnings.push(
-        `${sanitized.dropped} font(s) were invalid or exceeded the size limit and were dropped.`,
+        translate(locale, "backup.droppedFonts", { count: sanitized.dropped }),
       );
     }
   }

@@ -1,8 +1,9 @@
 {
   "manifest_version": 3,
   "name": "StyleShift",
-  "version": "2.0.0",
-  "description": "Pair primary and fallback fonts for multilingual websites. Customize typography and CSS with local fonts and private settings.",
+  "version": "2.0.3",
+  "default_locale": "en",
+  "description": "__MSG_extensionDescription__",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
@@ -32,7 +33,7 @@
       "suggested_key": {
         "default": "Alt+Shift+S"
       },
-      "description": "Toggle StyleShift fonts for the current site"
+      "description": "__MSG_toggleFontCommand__"
     }
   },
   "content_security_policy": {

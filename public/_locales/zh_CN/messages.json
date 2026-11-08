@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "为多语言网站搭配主字体和备用字体，使用本地字体自定义排版和 CSS。"
+  },
+  "toggleFontCommand": {
+    "message": "开启或关闭当前网站的 StyleShift 字体"
+  }
+}

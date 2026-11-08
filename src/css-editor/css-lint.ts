@@ -71,7 +71,10 @@ function structuralTokens(text: string): {
   return { tokens, unterminatedComment, unterminatedString };
 }
 
-export function cssDiagnostics(text: string): Diagnostic[] {
+export function cssDiagnostics(
+  text: string,
+  phrase: (message: string) => string = (message) => message,
+): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
   const { tokens, unterminatedComment, unterminatedString } =
     structuralTokens(text);
@@ -82,7 +85,9 @@ export function cssDiagnostics(text: string): Diagnostic[] {
       to: Math.min(unterminatedComment + 2, text.length),
       severity: "error",
       source: "styleshift",
-      message: "Unterminated comment - this /* is never closed with */.",
+      message: phrase(
+        "Unterminated comment - this /* is never closed with */.",
+      ),
     });
   }
 
@@ -92,7 +97,7 @@ export function cssDiagnostics(text: string): Diagnostic[] {
       to: Math.min(unterminatedString + 1, text.length),
       severity: "error",
       source: "styleshift",
-      message: "Unterminated string - this quote is never closed.",
+      message: phrase("Unterminated string - this quote is never closed."),
     });
   }
 
@@ -120,7 +125,7 @@ export function cssDiagnostics(text: string): Diagnostic[] {
           to: token.index + 1,
           severity: "error",
           source: "styleshift",
-          message: "Unexpected } - there is no open block to close.",
+          message: phrase("Unexpected } - there is no open block to close."),
         });
         continue;
       }
@@ -134,20 +139,25 @@ export function cssDiagnostics(text: string): Diagnostic[] {
       to: openIndex + 1,
       severity: "error",
       source: "styleshift",
-      message:
+      message: phrase(
         "Unclosed block - this { is never closed, so the rules after it are ignored.",
+      ),
     });
   }
 
   // A declaration immediately before a `}` may omit its semicolon, but one
   // followed by another declaration may not. Flag `prop: value` runs that are
   // followed by a newline and another declaration without a separator.
-  diagnostics.push(...missingSemicolons(text, tokens));
+  diagnostics.push(...missingSemicolons(text, tokens, phrase));
 
   return diagnostics.sort((a, b) => a.from - b.from);
 }
 
-function missingSemicolons(text: string, tokens: Token[]): Diagnostic[] {
+function missingSemicolons(
+  text: string,
+  tokens: Token[],
+  phrase: (message: string) => string,
+): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
 
   // Slice the source into block bodies: everything between a `{` and its
@@ -200,8 +210,9 @@ function missingSemicolons(text: string, tokens: Token[]): Diagnostic[] {
         to: lineStart + line.length,
         severity: "warning",
         source: "styleshift",
-        message:
+        message: phrase(
           "Missing semicolon - without it the browser discards this declaration and the next one.",
+        ),
       });
     }
   }

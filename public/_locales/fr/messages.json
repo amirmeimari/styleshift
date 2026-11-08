@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "Associez une police principale à des polices de secours. Personnalisez la typographie et le CSS avec des polices locales."
+  },
+  "toggleFontCommand": {
+    "message": "Activer ou désactiver les polices StyleShift sur le site actuel"
+  }
+}

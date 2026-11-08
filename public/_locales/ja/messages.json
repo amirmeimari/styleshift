@@ -1,0 +1,8 @@
+{
+  "extensionDescription": {
+    "message": "多言語サイトにメインフォントと代替フォントを設定。端末内のフォントで文字組みや CSS をカスタマイズできます。"
+  },
+  "toggleFontCommand": {
+    "message": "現在のサイトで StyleShift のフォントを切り替える"
+  }
+}

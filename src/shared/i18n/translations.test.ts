@@ -30,4 +30,17 @@ describe("translation completeness", () => {
       }
     }
   });
+
+  it("preserves the variables used by each message in every locale", () => {
+    const variables = (message: string) =>
+      [...new Set(message.match(/\{\w+\}/g) ?? [])].sort();
+
+    for (const [key, entry] of Object.entries(translations)) {
+      for (const { code } of LOCALES) {
+        expect(variables(entry[code]), `${key} in ${code}`).toEqual(
+          variables(entry.en),
+        );
+      }
+    }
+  });
 });

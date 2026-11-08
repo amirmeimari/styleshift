@@ -11,10 +11,9 @@ import {
   type ThemePref,
 } from "./theme";
 import {
-  DEFAULT_LOCALE,
   LOCALE_STORAGE_KEY,
-  isLocaleCode,
   localeDir,
+  resolveUiLocale,
   type LocaleCode,
 } from "./i18n/locales";
 
@@ -22,7 +21,7 @@ export type Bootstrap = { theme: ThemePref; locale: LocaleCode };
 
 export async function bootstrapThemeAndLocale(): Promise<Bootstrap> {
   let theme: ThemePref = DEFAULT_THEME;
-  let locale: LocaleCode = DEFAULT_LOCALE;
+  let storedLocale: unknown;
 
   try {
     const stored = await chrome.storage.local.get([
@@ -30,17 +29,15 @@ export async function bootstrapThemeAndLocale(): Promise<Bootstrap> {
       LOCALE_STORAGE_KEY,
     ]);
     const storedTheme = stored[THEME_STORAGE_KEY];
-    const storedLocale = stored[LOCALE_STORAGE_KEY];
+    storedLocale = stored[LOCALE_STORAGE_KEY];
     if (isThemePref(storedTheme)) {
       theme = storedTheme;
     }
-    if (isLocaleCode(storedLocale)) {
-      locale = storedLocale;
-    }
   } catch {
-    // Providers will resolve and apply their defaults once mounted instead.
+    // Fall back to the default theme and the browser's language.
   }
 
+  const locale = resolveUiLocale(storedLocale);
   document.documentElement.classList.toggle(
     "dark",
     resolveTheme(theme) === "dark",
